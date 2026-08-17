@@ -1,0 +1,28 @@
+--cpu Cortex-M3
+"ping_hen\startup_stm32f103xb.o"
+"ping_hen\main.o"
+"ping_hen\gpio.o"
+"ping_hen\dma.o"
+"ping_hen\i2c.o"
+"ping_hen\stm32f1xx_it.o"
+"ping_hen\stm32f1xx_hal_msp.o"
+"ping_hen\stm32f1xx_hal_gpio_ex.o"
+"ping_hen\stm32f1xx_hal_i2c.o"
+"ping_hen\stm32f1xx_hal.o"
+"ping_hen\stm32f1xx_hal_rcc.o"
+"ping_hen\stm32f1xx_hal_rcc_ex.o"
+"ping_hen\stm32f1xx_hal_gpio.o"
+"ping_hen\stm32f1xx_hal_dma.o"
+"ping_hen\stm32f1xx_hal_cortex.o"
+"ping_hen\stm32f1xx_hal_pwr.o"
+"ping_hen\stm32f1xx_hal_flash.o"
+"ping_hen\stm32f1xx_hal_flash_ex.o"
+"ping_hen\stm32f1xx_hal_exti.o"
+"ping_hen\system_stm32f1xx.o"
+"ping_hen\ssd1306.o"
+"ping_hen\ssd1306_fonts.o"
+"ping_hen\ssd1306_tests.o"
+--library_type=microlib --strict --scatter "Ping_Hen\Ping_Hen.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "Ping_Hen.map" -o Ping_Hen\Ping_Hen.axf
