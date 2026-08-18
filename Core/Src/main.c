@@ -39,6 +39,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define MPU_SAMPLE_DELAY_MS 3U
+#define MPU_OUTPUT_SAMPLE_COUNT 150U
 
 /* USER CODE END PD */
 
@@ -110,8 +112,10 @@ int main(void)
 
 	// 定义数据缓冲区
 	MPU6050_t mpu6050_date = {0};
-	uint8_t mpu_sample;
+	
+	//初始化并且上电静止校准陀螺仪
 	uint8_t mpu_ready = 0;
+	uint16_t output_sample_count = 0;
 	if (MPU6050_Init(&hi2c2) == 0)
 	{
 		printf_dma("Keep MPU still: calibrating gyro...\r\n");
@@ -124,59 +128,47 @@ int main(void)
 	{
 		printf_dma("MPU WHO_AM_I or I2C failed\r\n");
 	}
-
-
-
-
+	
+	
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-		//单片机测试代码
-//			HAL_GPIO_WritePin(GPIOB,GPIO_PIN_12,GPIO_PIN_SET);
-//			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_8,GPIO_PIN_SET);
-//			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_11,GPIO_PIN_SET);
-//			HAL_Delay(500);
-//			HAL_GPIO_WritePin(GPIOB,GPIO_PIN_12,GPIO_PIN_RESET);
-//			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_8,GPIO_PIN_RESET);
-//			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_11,GPIO_PIN_RESET);
-//			HAL_Delay(500);
-		
-		   
-      my_count++;// 1. 【数字自加】
-      // 2. 【核心魔法：格式化转换】
-      // 把 my_count 的值按照 "%d" 的格式，拼装成字符串写进 str_buff 数组里
-      // 此时 str_buff 里面的内容就变成了 "Count: 1", "Count: 2" ...
-		sprintf(str_buff, "X: %d", my_count);
-      ssd1306_Fill(Black);// 3. 【清空显存】（必须清，否则新数字会和旧数字叠在一起变成重影）
-
-      // 4. 【把字符串画到显存里】
-      // 设置显示坐标：X=10 像素, Y=20 像素；选用中等大小的字体 Font_11x18
-      ssd1306_SetCursor(10, 20);
-      ssd1306_WriteString(str_buff, Font_11x18, White);
-      // 5. 【推送到屏幕】
-      ssd1306_UpdateScreen_DMA(); // 如果你配好了DMA，也可以换成 ssd1306_UpdateScreen_DMA();
-
-			MPU6050_Read_All(&hi2c2,&mpu6050_date);	//进行姿态解算，更新结构体
-			
-		printf_dma("x轴加速度%d x轴角速度%d \r\n",mpu6050_date.Accel_X_RAW,mpu6050_date.Gyro_X_RAW);
-		printf_dma("y轴加速度%d y轴角速度%d \r\n",mpu6050_date.Accel_Y_RAW,mpu6050_date.Gyro_Y_RAW);
-		printf_dma("z轴加速度%d z轴角速度%d \r\n",mpu6050_date.Accel_Z_RAW,mpu6050_date.Gyro_Z_RAW);
-		printf_dma(" \r\n");
-		printf_dma("转化后x轴加速度%f g 转化后x轴角速度%f 度/s \r\n",mpu6050_date.Ax,mpu6050_date.Gx);
-		printf_dma("转化后y轴加速度%f g 转化后y轴角速度%f 度/s \r\n",mpu6050_date.Ay,mpu6050_date.Gy);
-		printf_dma("转化后z轴加速度%f g 转化后z轴角速度%f 度/s \r\n",mpu6050_date.Az,mpu6050_date.Gz);
-		printf_dma(" \r\n");
-		printf_dma("当前x轴姿态角%f 度 \r\n",mpu6050_date.KalmanAngleX);
-		printf_dma("当前y轴姿态角%f 度 \r\n",mpu6050_date.KalmanAngleY);
-		printf_dma(" \r\n");
-		for (mpu_sample = 0; mpu_sample < 50 && mpu_ready; mpu_sample++)
+	while (1)
+	{
+		// 每次循环读取一帧14字节数据，后续可在此处加入300Hz PID控制代码。
+		if (mpu_ready)
 		{
-			HAL_Delay(1);
 			MPU6050_Read_All(&hi2c2, &mpu6050_date);
+			output_sample_count++;
 		}
+
+		// 每150次采样打印一次，约每0.5秒刷新调试信息，不参与姿态解算。
+		if (mpu_ready && output_sample_count >= 10)
+		{
+			output_sample_count = 0;
+			my_count++;
+			sprintf(str_buff, "X: %d", my_count);							//组合打印内容,这里是把数字变成字符
+			ssd1306_Fill(Black);															//清空屏幕缓冲区
+			ssd1306_SetCursor(10, 20);												//锁定打印位置
+			ssd1306_WriteString(str_buff, Font_11x18, White);	//确定打印字符,大小,颜色
+			ssd1306_UpdateScreen_DMA();												//刷新
+
+			printf_dma("x轴加速度%d x轴角速度%d \r\n", mpu6050_date.Accel_X_RAW, mpu6050_date.Gyro_X_RAW);
+			printf_dma("y轴加速度%d y轴角速度%d \r\n", mpu6050_date.Accel_Y_RAW, mpu6050_date.Gyro_Y_RAW);
+			printf_dma("z轴加速度%d z轴角速度%d \r\n", mpu6050_date.Accel_Z_RAW, mpu6050_date.Gyro_Z_RAW);
+			printf_dma(" \r\n");
+			printf_dma("转化后x轴加速度%f g 转化后x轴角速度%f 度/s \r\n", mpu6050_date.Ax, mpu6050_date.Gx);
+			printf_dma("转化后y轴加速度%f g 转化后y轴角速度%f 度/s \r\n", mpu6050_date.Ay, mpu6050_date.Gy);
+			printf_dma("转化后z轴加速度%f g 转化后z轴角速度%f 度/s \r\n", mpu6050_date.Az, mpu6050_date.Gz);
+			printf_dma(" \r\n");
+			printf_dma("当前x轴姿态角%f 度 \r\n", mpu6050_date.KalmanAngleX);
+			printf_dma("当前y轴姿态角%f 度 \r\n", mpu6050_date.KalmanAngleY);
+			printf_dma(" \r\n");
+		}
+
+		// 当前用毫秒延时模拟控制周期；正式控制时可替换为1us定时器中断/任务唤醒。
+		HAL_Delay(3);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

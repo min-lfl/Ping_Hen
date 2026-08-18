@@ -39,13 +39,12 @@
 #define TEMP_OUT_H_REG 0x41
 #define GYRO_CONFIG_REG 0x1B
 #define GYRO_XOUT_H_REG 0x43
+#define MPU6050_READ_TIMEOUT_MS 3U
 
 // Setup MPU6050
 #define MPU6050_ADDR 0xD0									// 传感器的 I2C 设备地址
 const uint16_t i2c_timeout = 100;					// I2C 通讯超时时间（单位：毫秒）
 const double Accel_Z_corrector = 16384.0;	// Z 轴加速度计校准比例因子（用于转换原始值）
-
-uint32_t timer;														// 计时器，用于计算两次采样之间的时间间隔 dt
 
 // X 轴卡尔曼滤波器参数
 static double gyro_bias_x;
@@ -82,11 +81,13 @@ uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx)
 
         HAL_Delay(100);
 
-        Data = 0x04;
+        // CONFIG=2：陀螺仪数字低通约92Hz，响应延迟约3~4ms。
+        Data = 0x02;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, CONFIG_REG, 1, &Data, 1, i2c_timeout);
 
-        // 写入 SMPLRT_DIV 寄存器，将数据速率设置为 1KHz
-        Data = 0x09;
+        // 基准采样率为1kHz，分频值为2，传感器输出约333Hz。
+        // MPU6500兼容芯片的加速度计低通也设置为约92Hz。
+        Data = 0x02;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, SMPLRT_DIV_REG, 1, &Data, 1, i2c_timeout);
 
         // 在 ACCEL_CONFIG 寄存器中设置加速度计配置
@@ -94,7 +95,7 @@ uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx)
         Data = 0x00;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, ACCEL_CONFIG_REG, 1, &Data, 1, i2c_timeout);
 
-        Data = 0x04;
+        Data = 0x02;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, ACCEL_CONFIG_2_REG, 1, &Data, 1, i2c_timeout);
 
         // 在 GYRO_CONFIG 寄存器中设置陀螺仪配置
@@ -117,8 +118,10 @@ uint8_t MPU6050_CalibrateGyro(I2C_HandleTypeDef *I2Cx, uint16_t sample_count)
     if (sample_count == 0)
         return 1;
 
+    // 校准期间必须保持传感器静止，先等待器件和温度稳定。
     HAL_Delay(500);
 
+    // 对静止陀螺仪原始值求平均，得到三个轴的零偏。
     for (sample = 0; sample < sample_count; sample++)
     {
         if (HAL_I2C_Mem_Read(I2Cx, MPU6050_ADDR, GYRO_XOUT_H_REG, 1,
@@ -135,6 +138,7 @@ uint8_t MPU6050_CalibrateGyro(I2C_HandleTypeDef *I2Cx, uint16_t sample_count)
     gyro_bias_y = (double)sum_y / sample_count;
     gyro_bias_z = (double)sum_z / sample_count;
 
+    // 清空卡尔曼滤波器状态，下一次读取时用加速度计角度初始化。
     KalmanX.angle = 0.0;
     KalmanX.bias = 0.0;
     KalmanX.P[0][0] = 0.0;
@@ -148,7 +152,6 @@ uint8_t MPU6050_CalibrateGyro(I2C_HandleTypeDef *I2Cx, uint16_t sample_count)
     KalmanY.P[1][0] = 0.0;
     KalmanY.P[1][1] = 0.0;
     filter_initialized = 0;
-    timer = HAL_GetTick();
 
     return 0;
 }
@@ -220,7 +223,9 @@ void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
 
     // 从 ACCEL_XOUT_H 寄存器开始读取 14 字节数据
 
-    HAL_I2C_Mem_Read(I2Cx, MPU6050_ADDR, ACCEL_XOUT_H_REG, 1, Rec_Data, 14, i2c_timeout);
+    if (HAL_I2C_Mem_Read(I2Cx, MPU6050_ADDR, ACCEL_XOUT_H_REG, 1,
+                         Rec_Data, 14, MPU6050_READ_TIMEOUT_MS) != HAL_OK)
+        return;
 
     DataStruct->Accel_X_RAW = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
     DataStruct->Accel_Y_RAW = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
@@ -240,9 +245,8 @@ void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
 
     
 		// 卡尔曼角度解算
-    uint32_t now = HAL_GetTick();
-    double dt = (double)(now - timer) / 1000.0;
-    timer = now;
+    // 主循环使用3ms延时，姿态融合按300Hz目标周期计算dt。
+    double dt = 1.0 / 300.0;
     double roll;
     double accel_x = DataStruct->Accel_X_RAW;
     double accel_z = DataStruct->Accel_Z_RAW;
@@ -267,8 +271,6 @@ void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
         return;
     }
 
-    if (dt <= 0.0 || dt > 0.05)
-        dt = 0.01;
     if ((pitch < -90 && DataStruct->KalmanAngleY > 90) || (pitch > 90 && DataStruct->KalmanAngleY < -90))
     {
         KalmanY.angle = pitch;
