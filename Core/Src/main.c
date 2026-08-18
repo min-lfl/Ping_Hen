@@ -20,6 +20,7 @@
 #include "main.h"
 #include "dma.h"
 #include "i2c.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -27,6 +28,8 @@
 #include "ssd1306.h"
 #include "ssd1306_fonts.h" // 包含字库
 #include <stdio.h>         // 为了使用 sprintf 函数把数字转成字符串
+#include "Printf_DMA.H"
+#include "mpu6050.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,42 +95,33 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_I2C1_Init();
+  MX_USART1_UART_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
 
 
-  // 1. 初始化 OLED 屏幕
+  //初始化 OLED 屏幕
   ssd1306_Init();
-
-  // 2. 清空屏幕显存 (全部填充满黑色)
+  //清空屏幕显存 (全部填充满黑色)
   ssd1306_Fill(Black);
-
-  // 3. 画一个空心矩形框做边框 (x1, y1, x2, y2)
-  ssd1306_DrawRectangle(0, 0, 127, 63, White);
-
-  // 4. 设置文字光标 (X像素点，Y像素点)
-  ssd1306_SetCursor(15, 10);
-  
-  // 5. 打印字符串 (内容, 字体大小, 颜色)
-  // 常用的字体有 Font_6x8, Font_7x10, Font_11x18, Font_16x26
-  ssd1306_WriteString("System Ready!", Font_7x10, White);
-
-  // 6. 画两个图形演示
-  ssd1306_DrawCircle(30, 40, 12, White);            // 画个空心圆
-  ssd1306_FillRectangle(80, 30, 110, 50, White);    // 画个实心方块
-
-  // 7. 【极其重要】把以上在显存里的内容，推送到真实屏幕上！
-//  ssd1306_UpdateScreen_DMA();
-
-
-  int my_count = 0;       // 自加的数字
+	int my_count = 0;       // 自加的数字
   char str_buff[32];      // 字符缓存区（准备32字节足够装一句话了）
+	
+
+	// 定义数据缓冲区
+	MPU6050_t mpu6050_date;
+	MPU6050_Init(&hi2c2);
+
+
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//			//��Ƭ�����Դ���
+		//单片机测试代码
 //			HAL_GPIO_WritePin(GPIOB,GPIO_PIN_12,GPIO_PIN_SET);
 //			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_8,GPIO_PIN_SET);
 //			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_11,GPIO_PIN_SET);
@@ -137,28 +131,37 @@ int main(void)
 //			HAL_GPIO_WritePin(GPIOA,GPIO_PIN_11,GPIO_PIN_RESET);
 //			HAL_Delay(500);
 		
-		   // 1. 【数字自加】
-      my_count++;
-
+		   
+      my_count++;// 1. 【数字自加】
       // 2. 【核心魔法：格式化转换】
       // 把 my_count 的值按照 "%d" 的格式，拼装成字符串写进 str_buff 数组里
       // 此时 str_buff 里面的内容就变成了 "Count: 1", "Count: 2" ...
-      sprintf(str_buff, "Count: %d", my_count);
-
-      // 3. 【清空显存】（必须清，否则新数字会和旧数字叠在一起变成重影）
-      ssd1306_Fill(Black);
+		sprintf(str_buff, "X: %d", my_count);
+      ssd1306_Fill(Black);// 3. 【清空显存】（必须清，否则新数字会和旧数字叠在一起变成重影）
 
       // 4. 【把字符串画到显存里】
       // 设置显示坐标：X=10 像素, Y=20 像素；选用中等大小的字体 Font_11x18
       ssd1306_SetCursor(10, 20);
       ssd1306_WriteString(str_buff, Font_11x18, White);
-
       // 5. 【推送到屏幕】
       ssd1306_UpdateScreen_DMA(); // 如果你配好了DMA，也可以换成 ssd1306_UpdateScreen_DMA();
 
-      // 6. 【延时】
-      // 延时 100ms（每秒加10次），不然单片机跑太快你肉眼只能看到残影
-      HAL_Delay(30);
+			MPU6050_Read_All(&hi2c2,&mpu6050_date);	//进行姿态解算，更新结构体
+			
+		printf_dma("x轴加速度%d x轴角速度%d \r\n",mpu6050_date.Accel_X_RAW,mpu6050_date.Gyro_X_RAW);
+		printf_dma("y轴加速度%d y轴角速度%d \r\n",mpu6050_date.Accel_Y_RAW,mpu6050_date.Gyro_Y_RAW);
+		printf_dma("z轴加速度%d z轴角速度%d \r\n",mpu6050_date.Accel_Z_RAW,mpu6050_date.Gyro_Z_RAW);
+		printf_dma(" \r\n");
+		printf_dma("转化后x轴加速度%f g 转化后x轴角速度%f 度/s \r\n",mpu6050_date.Ax,mpu6050_date.Gx);
+		printf_dma("转化后y轴加速度%f g 转化后y轴角速度%f 度/s \r\n",mpu6050_date.Ay,mpu6050_date.Gy);
+		printf_dma("转化后z轴加速度%f g 转化后z轴角速度%f 度/s \r\n",mpu6050_date.Az,mpu6050_date.Gz);
+		printf_dma(" \r\n");
+		printf_dma("当前x轴姿态角%f 度 \r\n",mpu6050_date.KalmanAngleX);
+		printf_dma("当前y轴姿态角%f 度 \r\n",mpu6050_date.KalmanAngleY);
+		printf_dma(" \r\n");
+		HAL_Delay(200);
+	
+      HAL_Delay(300);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
