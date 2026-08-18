@@ -32,7 +32,9 @@
 #define WHO_AM_I_REG 0x75
 #define PWR_MGMT_1_REG 0x6B
 #define SMPLRT_DIV_REG 0x19
+#define CONFIG_REG 0x1A
 #define ACCEL_CONFIG_REG 0x1C
+#define ACCEL_CONFIG_2_REG 0x1D
 #define ACCEL_XOUT_H_REG 0x3B
 #define TEMP_OUT_H_REG 0x41
 #define GYRO_CONFIG_REG 0x1B
@@ -46,6 +48,11 @@ const double Accel_Z_corrector = 16384.0;	// Z 轴加速度计校准比例因子
 uint32_t timer;														// 计时器，用于计算两次采样之间的时间间隔 dt
 
 // X 轴卡尔曼滤波器参数
+static double gyro_bias_x;
+static double gyro_bias_y;
+static double gyro_bias_z;
+static uint8_t filter_initialized;
+
 Kalman_t KalmanX = {
     .Q_angle = 0.001f,										// 角度过程噪声协方差：代表对预测角度的信任程度
     .Q_bias = 0.003f,											// 陀螺仪漂移噪声协方差：代表对陀螺仪偏移量的信任程度
@@ -70,17 +77,25 @@ uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx)
     if (check == 0x70) // 如果一切顺利，传感器将返回0x70
     {
         // 电源管理寄存器 0X6B，需写入全 0 以唤醒传感器
-        Data = 0;
+        Data = 0x01;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, PWR_MGMT_1_REG, 1, &Data, 1, i2c_timeout);
 
+        HAL_Delay(100);
+
+        Data = 0x04;
+        HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, CONFIG_REG, 1, &Data, 1, i2c_timeout);
+
         // 写入 SMPLRT_DIV 寄存器，将数据速率设置为 1KHz
-        Data = 0x07;
+        Data = 0x09;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, SMPLRT_DIV_REG, 1, &Data, 1, i2c_timeout);
 
         // 在 ACCEL_CONFIG 寄存器中设置加速度计配置
         // 设置 X、Y、Z 轴自检禁用，量程选择 FS_SEL=0，即量程为 ±2g
         Data = 0x00;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, ACCEL_CONFIG_REG, 1, &Data, 1, i2c_timeout);
+
+        Data = 0x04;
+        HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, ACCEL_CONFIG_2_REG, 1, &Data, 1, i2c_timeout);
 
         // 在 GYRO_CONFIG 寄存器中设置陀螺仪配置
         // 设置 X、Y、Z 轴自检禁用，量程选择 FS_SEL=0，即量程为 ±250 °/s
@@ -89,6 +104,53 @@ uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx)
         return 0;
     }
     return 1;
+}
+
+uint8_t MPU6050_CalibrateGyro(I2C_HandleTypeDef *I2Cx, uint16_t sample_count)
+{
+    uint8_t Rec_Data[6];
+    int64_t sum_x = 0;
+    int64_t sum_y = 0;
+    int64_t sum_z = 0;
+    uint16_t sample;
+
+    if (sample_count == 0)
+        return 1;
+
+    HAL_Delay(500);
+
+    for (sample = 0; sample < sample_count; sample++)
+    {
+        if (HAL_I2C_Mem_Read(I2Cx, MPU6050_ADDR, GYRO_XOUT_H_REG, 1,
+                             Rec_Data, 6, i2c_timeout) != HAL_OK)
+            return 2;
+
+        sum_x += (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
+        sum_y += (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
+        sum_z += (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
+        HAL_Delay(10);
+    }
+
+    gyro_bias_x = (double)sum_x / sample_count;
+    gyro_bias_y = (double)sum_y / sample_count;
+    gyro_bias_z = (double)sum_z / sample_count;
+
+    KalmanX.angle = 0.0;
+    KalmanX.bias = 0.0;
+    KalmanX.P[0][0] = 0.0;
+    KalmanX.P[0][1] = 0.0;
+    KalmanX.P[1][0] = 0.0;
+    KalmanX.P[1][1] = 0.0;
+    KalmanY.angle = 0.0;
+    KalmanY.bias = 0.0;
+    KalmanY.P[0][0] = 0.0;
+    KalmanY.P[0][1] = 0.0;
+    KalmanY.P[1][0] = 0.0;
+    KalmanY.P[1][1] = 0.0;
+    filter_initialized = 0;
+    timer = HAL_GetTick();
+
+    return 0;
 }
 
 void MPU6050_Read_Accel(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
@@ -130,9 +192,9 @@ void MPU6050_Read_Gyro(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
 					此处配置 FS_SEL = 0，故除以 131.0。
 					更多详情请查阅 GYRO_CONFIG 寄存器。 ****/
 
-    DataStruct->Gx = DataStruct->Gyro_X_RAW / 131.0;
-    DataStruct->Gy = DataStruct->Gyro_Y_RAW / 131.0;
-    DataStruct->Gz = DataStruct->Gyro_Z_RAW / 131.0;
+    DataStruct->Gx = (DataStruct->Gyro_X_RAW - gyro_bias_x) / 131.0;
+    DataStruct->Gy = (DataStruct->Gyro_Y_RAW - gyro_bias_y) / 131.0;
+    DataStruct->Gz = (DataStruct->Gyro_Z_RAW - gyro_bias_z) / 131.0;
 }
 
 void MPU6050_Read_Temp(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
@@ -172,17 +234,19 @@ void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
     DataStruct->Ay = DataStruct->Accel_Y_RAW / 16384.0;
     DataStruct->Az = DataStruct->Accel_Z_RAW / Accel_Z_corrector;
     DataStruct->Temperature = (float)((int16_t)temp / (float)340.0 + (float)36.53);
-    DataStruct->Gx = DataStruct->Gyro_X_RAW / 131.0;
-    DataStruct->Gy = DataStruct->Gyro_Y_RAW / 131.0;
-    DataStruct->Gz = DataStruct->Gyro_Z_RAW / 131.0;
+    DataStruct->Gx = (DataStruct->Gyro_X_RAW - gyro_bias_x) / 131.0;
+    DataStruct->Gy = (DataStruct->Gyro_Y_RAW - gyro_bias_y) / 131.0;
+    DataStruct->Gz = (DataStruct->Gyro_Z_RAW - gyro_bias_z) / 131.0;
 
     
 		// 卡尔曼角度解算
-    double dt = (double)(HAL_GetTick() - timer) / 1000;
-    timer = HAL_GetTick();
+    uint32_t now = HAL_GetTick();
+    double dt = (double)(now - timer) / 1000.0;
+    timer = now;
     double roll;
-    double roll_sqrt = sqrt(
-        DataStruct->Accel_X_RAW * DataStruct->Accel_X_RAW + DataStruct->Accel_Z_RAW * DataStruct->Accel_Z_RAW);
+    double accel_x = DataStruct->Accel_X_RAW;
+    double accel_z = DataStruct->Accel_Z_RAW;
+    double roll_sqrt = sqrt(accel_x * accel_x + accel_z * accel_z);
     if (roll_sqrt != 0.0)
     {
         roll = atan(DataStruct->Accel_Y_RAW / roll_sqrt) * RAD_TO_DEG;
@@ -192,6 +256,19 @@ void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
         roll = 0.0;
     }
     double pitch = atan2(-DataStruct->Accel_X_RAW, DataStruct->Accel_Z_RAW) * RAD_TO_DEG;
+
+    if (!filter_initialized)
+    {
+        KalmanX.angle = roll;
+        KalmanY.angle = pitch;
+        DataStruct->KalmanAngleX = roll;
+        DataStruct->KalmanAngleY = pitch;
+        filter_initialized = 1;
+        return;
+    }
+
+    if (dt <= 0.0 || dt > 0.05)
+        dt = 0.01;
     if ((pitch < -90 && DataStruct->KalmanAngleY > 90) || (pitch > 90 && DataStruct->KalmanAngleY < -90))
     {
         KalmanY.angle = pitch;

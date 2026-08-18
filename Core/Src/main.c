@@ -109,8 +109,21 @@ int main(void)
 	
 
 	// 定义数据缓冲区
-	MPU6050_t mpu6050_date;
-	MPU6050_Init(&hi2c2);
+	MPU6050_t mpu6050_date = {0};
+	uint8_t mpu_sample;
+	uint8_t mpu_ready = 0;
+	if (MPU6050_Init(&hi2c2) == 0)
+	{
+		printf_dma("Keep MPU still: calibrating gyro...\r\n");
+		if (MPU6050_CalibrateGyro(&hi2c2, 300) == 0)
+			mpu_ready = 1;
+		else
+			printf_dma("MPU gyro calibration failed\r\n");
+	}
+	else
+	{
+		printf_dma("MPU WHO_AM_I or I2C failed\r\n");
+	}
 
 
 
@@ -159,9 +172,11 @@ int main(void)
 		printf_dma("当前x轴姿态角%f 度 \r\n",mpu6050_date.KalmanAngleX);
 		printf_dma("当前y轴姿态角%f 度 \r\n",mpu6050_date.KalmanAngleY);
 		printf_dma(" \r\n");
-		HAL_Delay(200);
-	
-      HAL_Delay(300);
+		for (mpu_sample = 0; mpu_sample < 50 && mpu_ready; mpu_sample++)
+		{
+			HAL_Delay(1);
+			MPU6050_Read_All(&hi2c2, &mpu6050_date);
+		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

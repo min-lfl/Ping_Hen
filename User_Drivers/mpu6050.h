@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include "i2c.h"
 
+#ifndef MPU6050_DRIVER_H_
+#define MPU6050_DRIVER_H_
+
 // MPU6050 结构体
 typedef struct
 {
@@ -49,6 +52,8 @@ typedef struct
 
 uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx);
 
+uint8_t MPU6050_CalibrateGyro(I2C_HandleTypeDef *I2Cx, uint16_t sample_count);
+
 void MPU6050_Read_Accel(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct);
 
 void MPU6050_Read_Gyro(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct);
@@ -58,3 +63,5 @@ void MPU6050_Read_Temp(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct);
 void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct);
 
 double Kalman_getAngle(Kalman_t *Kalman, double newAngle, double newRate, double dt);
+
+#endif /* MPU6050_DRIVER_H_ */
