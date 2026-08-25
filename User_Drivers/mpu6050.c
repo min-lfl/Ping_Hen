@@ -216,7 +216,8 @@ void MPU6050_Read_Temp(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
     DataStruct->Temperature = (float)((int16_t)temp / (float)340.0 + (float)36.53);
 }
 
-void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
+//哪个口,结构体,频率
+void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct,double Frequency)
 {
     uint8_t Rec_Data[14];
     int16_t temp;
@@ -245,8 +246,8 @@ void MPU6050_Read_All(I2C_HandleTypeDef *I2Cx, MPU6050_t *DataStruct)
 
     
 		// 卡尔曼角度解算
-    // 主循环使用3ms延时，姿态融合按300Hz目标周期计算dt。
-    double dt = 1.0 / 300.0;
+    // 姿态融合按目标周期计算dt。
+    double dt = 1.0 / Frequency;
     double roll;
     double accel_x = DataStruct->Accel_X_RAW;
     double accel_z = DataStruct->Accel_Z_RAW;

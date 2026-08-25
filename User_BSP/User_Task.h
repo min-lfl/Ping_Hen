@@ -18,7 +18,20 @@ void User_Task_Init(void);  //任务初始化函数,在main函数中调用,用�
 
 
 
-void User_Task_key(void);   //按键任务函数,在main函数的while循环中调用,用于处理按键事件
+//***关于陀螺仪模块任务***
+void User_Task_MPU6050_Init(void);                       //陀螺仪任务初始化函数
+void User_Task_MPU6050_Update(void);                     //陀螺仪任务函数,在main函数的while循环中调用,用于触发采样,处理陀螺仪数据采集和姿态解算
+void User_Task_MPU6050_Get(MPU6050_t* data);     //陀螺仪任务函数,用于获取陀螺仪数据,将mpu6050_date数据传递给外部使用,注意:该函数需要在User_Task_MPU6050_Update()之后调用,否则获取的数据可能不准确
+
+//***关于OLED模块任务***
+void User_Task_OLED_Init(void);       //OLED任务初始化函数
+void User_Task_OLED_Update(void);     //OLED任务函数,在main函数的while循环中调用,用于更新OLED屏幕显示
+
+//*** 关于串口任务***
+void User_Task_UART_Update(void);     //串口任务函数,在main函数的while循环中调用,用于更新串口数据传输
+
+//***关于按键模块任务***
+void User_Task_key(void);             //按键任务函数,在main函数的while循环中调用,用于处理按键事件
 
 
 #endif
