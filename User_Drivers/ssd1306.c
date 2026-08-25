@@ -593,26 +593,26 @@ uint8_t ssd1306_GetDisplayOn() {
 }
 
 
-/* ����һ����־λ����¼��ǰ DMA �ǲ�������æ��ˢ�� */
+/* 定义一个标志位，记录当前 DMA 是不是正在忙着刷屏 */
 static volatile uint8_t ssd1306_dma_busy = 0;
 
 /**
- * @brief  ������ʽ DMA ��Ļˢ�º���
- * @return 0: �ɹ�����DMA����; 1: ��һ�δ���δ���(æ)
+ * @brief  非阻塞式 DMA 屏幕刷新函数
+ * @return 0: 成功启动DMA传输; 1: 上一次传输未完成(忙)
  */
 uint8_t ssd1306_UpdateScreen_DMA(void) {
-    // �����һ�ε� 1024 �ֽڻ�û���ֱ꣬���˳���������
+    // 如果上一次的 1024 字节还没搬完，直接退出，不阻塞
     if (ssd1306_dma_busy) {
         return 1; 
     }
 
-    // ����Ϊæµ״̬
+    // 设置为忙碌状态
     ssd1306_dma_busy = 1;
 
-    // ���������� DMA �������� 1024 �ֽڵ��Դ� (SSD1306_Buffer)
-    // 0x40 �� OLED �����ݼĴ�����ַ
+    // 非阻塞启动 DMA 传输整个 1024 字节的显存 (SSD1306_Buffer)
+    // 0x40 是 OLED 的数据寄存器地址
     if (HAL_I2C_Mem_Write_DMA(&SSD1306_I2C_PORT, SSD1306_I2C_ADDR, 0x40, 1, SSD1306_Buffer, SSD1306_BUFFER_SIZE) != HAL_OK) {
-        // �������ʧ�ܣ�����I2C��ռ����ϣ��������ͷ�æµ��־
+        // 如果启动失败（比如I2C被占或故障），立刻释放忙碌标志
         ssd1306_dma_busy = 0;
         return 1;
     }
@@ -621,12 +621,12 @@ uint8_t ssd1306_UpdateScreen_DMA(void) {
 }
 
 /**
- * @brief  HAL ��� I2C �ڴ洫������жϻص�����
- *         �� 1024 �ֽڰ����һ˲�䣬Ӳ�����Զ������������
+ * @brief  HAL 库的 I2C 内存传输完成中断回调函数
+ *         当 1024 字节搬完的一瞬间，硬件会自动跳进这个函数
  */
 void HAL_I2C_MemTxCpltCallback(I2C_HandleTypeDef *hi2c) {
     if (hi2c->Instance == SSD1306_I2C_PORT.Instance) {
-        // ������ɣ��ͷű�־λ��������һ��ˢ��
+        // 搬运完成，释放标志位，允许下一次刷新
         ssd1306_dma_busy = 0; 
     }
 }

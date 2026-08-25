@@ -1,24 +1,25 @@
 #include "Printf_DMA.H"
 
 
-// ×Ô¶¨ÒåµÄ DMA ´òÓ¡º¯Êý
+// è‡ªå®šä¹‰çš„ DMA æ‰“å°å‡½æ•°
 void printf_dma(const char *format, ...) {
-    // 1. µÈ´ýÉÏÒ»´Î DMA ·¢ËÍÍê³É£¨·ÀÖ¹¸²¸ÇÕýÔÚ·¢ËÍµÄÊý¾Ý£©
-    // ÅÐ¶Ï´®¿ÚÊÇ·ñ´¦ÓÚ¾ÍÐ÷×´Ì¬
+    // 1. ç­‰å¾…ä¸Šä¸€æ¬¡ DMA å‘é€å®Œæˆï¼ˆé˜²æ­¢è¦†ç›–æ­£åœ¨å‘é€çš„æ•°æ®ï¼‰
+    // åˆ¤æ–­ä¸²å£æ˜¯å¦å¤„äºŽå°±ç»ªçŠ¶æ€
     while (huart1.gState != HAL_UART_STATE_READY) {
-        // µÈ´ý£¬»òÕß¼ÓÉÏ³¬Ê±´¦Àí
+        // ç­‰å¾…ï¼Œæˆ–è€…åŠ ä¸Šè¶…æ—¶å¤„ç†
     }
 
-    // 2. ½«´«ÈëµÄ²ÎÊý¸ñÊ½»¯Îª×Ö·û´®£¬´æÈëÈ«¾Ö»º³åÇø UartTxBuf
+    // 2. å°†ä¼ å…¥çš„å‚æ•°æ ¼å¼åŒ–ä¸ºå­—ç¬¦ä¸²ï¼Œå­˜å…¥å…¨å±€ç¼“å†²åŒº UartTxBuf
     va_list args;
     va_start(args, format);
-    // vsnprintf »á×Ô¶¯°Ñ \n Ö®ÀàµÄ¸ñÊ½»¯ºÃ£¬·µ»ØÊµ¼ÊÐ´ÈëµÄ³¤¶È
+    // vsnprintf ä¼šè‡ªåŠ¨æŠŠ \n ä¹‹ç±»çš„æ ¼å¼åŒ–å¥½ï¼Œè¿”å›žå®žé™…å†™å…¥çš„é•¿åº¦
     int length = vsnprintf((char *)UartTxBuf, UART_TX_BUF_SIZE, format, args);
     va_end(args);
 
-    // 3. Æô¶¯ DMA ·¢ËÍ
+    // 3. å¯åŠ¨ DMA å‘é€
     if (length > 0) {
         HAL_UART_Transmit_DMA(&huart1, UartTxBuf, length);
+				
     }
 }
 

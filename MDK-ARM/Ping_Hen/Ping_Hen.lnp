@@ -26,6 +26,9 @@
 "ping_hen\ssd1306_tests.o"
 "ping_hen\printf_dma.o"
 "ping_hen\mpu6050.o"
+"ping_hen\emm_v5.o"
+"ping_hen\bsp_emm_v5.o"
+"ping_hen\user_task.o"
 --library_type=microlib --strict --scatter "Ping_Hen\Ping_Hen.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

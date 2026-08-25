@@ -4,17 +4,17 @@
 #include "main.h"
 #include "usart.h"
 
-#include <stdarg.h> // ĞèÒª°üº¬Õâ¸öÍ·ÎÄ¼şÀ´´¦Àí¿É±ä²ÎÊı
+#include <stdarg.h> // éœ€è¦åŒ…å«è¿™ä¸ªå¤´æ–‡ä»¶æ¥å¤„ç†å¯å˜å‚æ•°
 #include <stdio.h>
 
-// ¶¨ÒåÒ»¸öÈ«¾ÖµÄ·¢ËÍ»º³åÇø£¬±£Ö¤DMA·¢ËÍÆÚ¼äÊı¾İ²»»á±»Ïú»Ù
+// å®šä¹‰ä¸€ä¸ªå…¨å±€çš„å‘é€ç¼“å†²åŒºï¼Œä¿è¯DMAå‘é€æœŸé—´æ•°æ®ä¸ä¼šè¢«é”€æ¯
 #define UART_TX_BUF_SIZE 256
 static uint8_t UartTxBuf[UART_TX_BUF_SIZE];
 
 
-void printf_dma(const char *format, ...);				// ×Ô¶¨ÒåµÄ DMA ´òÓ¡º¯Êı
+void printf_dma(const char *format, ...);				// è‡ªå®šä¹‰çš„ DMA æ‰“å°å‡½æ•°
 
-//Ê¹ÓÃÊ¾Àı
+//ä½¿ç”¨ç¤ºä¾‹
 //printf_dma("value = %d\r\n", val);
 
 

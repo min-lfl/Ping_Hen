@@ -181,9 +181,9 @@ void ssd1306_Polyline(const SSD1306_VERTEX *par_vertex, uint16_t par_size, SSD13
 void ssd1306_DrawRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
 void ssd1306_FillRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
 
-//·¢ËÍ·½Ê½(¶şÑ¡Ò»)
-void ssd1306_UpdateScreen(void);			//ÆÕÍ¨I2C·¢ËÍ
-uint8_t ssd1306_UpdateScreen_DMA(void);// ºô½Ğ DMA °áÔË·¢ËÍ£¨ºÄÊ± < 5 Î¢Ãë£¬ËæºóË²¼ä·µ»Ø£¬¾ø²»¿¨ËÀÖ÷Ñ­»·£¡£©
+//å‘é€æ–¹å¼(äºŒé€‰ä¸€)
+void ssd1306_UpdateScreen(void);			//æ™®é€šI2Cå‘é€
+uint8_t ssd1306_UpdateScreen_DMA(void);// å‘¼å« DMA æ¬è¿å‘é€ï¼ˆè€—æ—¶ < 5 å¾®ç§’ï¼Œéšåç¬é—´è¿”å›ï¼Œç»ä¸å¡æ­»ä¸»å¾ªç¯ï¼ï¼‰
 /**
  * @brief Invert color of pixels in rectangle (include border)
  * 

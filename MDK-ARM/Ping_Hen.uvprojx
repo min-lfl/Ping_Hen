@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../User_Drivers</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../User_Drivers;..\User_BSP</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -823,6 +823,41 @@
               <FileName>mpu6050.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\User_Drivers\mpu6050.h</FilePath>
+            </File>
+            <File>
+              <FileName>Emm_V5.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User_Drivers\Emm_V5.c</FilePath>
+            </File>
+            <File>
+              <FileName>Emm_V5.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User_Drivers\Emm_V5.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>User_BSP</GroupName>
+          <Files>
+            <File>
+              <FileName>BSP_Emm_V5.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User_BSP\BSP_Emm_V5.c</FilePath>
+            </File>
+            <File>
+              <FileName>BSP_Emm_V5.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User_BSP\BSP_Emm_V5.h</FilePath>
+            </File>
+            <File>
+              <FileName>User_Task.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User_BSP\User_Task.c</FilePath>
+            </File>
+            <File>
+              <FileName>User_Task.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User_BSP\User_Task.h</FilePath>
             </File>
           </Files>
         </Group>

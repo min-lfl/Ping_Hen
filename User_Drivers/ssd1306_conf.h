@@ -6,7 +6,7 @@
 #ifndef __SSD1306_CONF_H__
 #define __SSD1306_CONF_H__
 
-// Choose a microcontroller family,选择芯片系列
+// Choose a microcontroller family,閫夋嫨鑺墖绯诲垪
 //#define STM32F0
 #define STM32F1
 //#define STM32F4
@@ -20,11 +20,11 @@
 //#define STM32C0
 //#define STM32U5
 
-// Choose a bus,选择通信协议
+// Choose a bus,閫夋嫨閫氫俊鍗忚
 #define SSD1306_USE_I2C
 //#define SSD1306_USE_SPI
 
-// I2C Configuration,选择硬件外设
+// I2C Configuration,閫夋嫨纭欢澶栬
 #define SSD1306_I2C_PORT        hi2c1
 #define SSD1306_I2C_ADDR        (0x3C << 1)
 
@@ -37,14 +37,14 @@
 //#define SSD1306_Reset_Port      OLED_Res_GPIO_Port
 //#define SSD1306_Reset_Pin       OLED_Res_Pin
 
-// Mirror the screen if needed是否水平/垂直镜像
+// Mirror the screen if needed鏄惁姘村钩/鍨傜洿闀滃儚
 // #define SSD1306_MIRROR_VERT
 // #define SSD1306_MIRROR_HORIZ
 
-// Set inverse color if neede是否反色
+// Set inverse color if neede鏄惁鍙嶈壊
 // # define SSD1306_INVERSE_COLOR
 
-// Include only needed fonts	,包含需要的字体大小
+// Include only needed fonts	,鍖呭惈闇�瑕佺殑瀛椾綋澶у皬
 #define SSD1306_INCLUDE_FONT_6x8
 #define SSD1306_INCLUDE_FONT_7x10
 #define SSD1306_INCLUDE_FONT_11x18
