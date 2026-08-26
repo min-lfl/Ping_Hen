@@ -72,15 +72,16 @@ uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx)
     // 检查设备ID
 
     HAL_I2C_Mem_Read(I2Cx, MPU6050_ADDR, WHO_AM_I_REG, 1, &check, 1, i2c_timeout);
-
+		
     if (check == 0x68) // 如果一切顺利，传感器将返回0x70
     {
+				
         // 电源管理寄存器 0X6B，需写入全 0 以唤醒传感器
         Data = 0x01;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, PWR_MGMT_1_REG, 1, &Data, 1, i2c_timeout);
-
+				
         HAL_Delay(100);
-
+				
         // CONFIG=2：陀螺仪数字低通约92Hz，响应延迟约3~4ms。
         Data = 0x02;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, CONFIG_REG, 1, &Data, 1, i2c_timeout);
@@ -102,6 +103,7 @@ uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx)
         // 设置 X、Y、Z 轴自检禁用，量程选择 FS_SEL=0，即量程为 ±250 °/s
         Data = 0x00;
         HAL_I2C_Mem_Write(I2Cx, MPU6050_ADDR, GYRO_CONFIG_REG, 1, &Data, 1, i2c_timeout);
+				
         return 0;
     }
     return 1;

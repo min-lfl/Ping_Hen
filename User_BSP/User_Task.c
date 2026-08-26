@@ -1,4 +1,4 @@
-﻿#include "User_Task.H"
+#include "User_Task.H"
 
 /**
 	* @brief	任务初始化函数,在main函数中调用,用于初始化所有任务,包括硬件初始化和软件初始化
@@ -11,6 +11,7 @@ void User_Task_Init(void){
 	
 	// 初始化所有任务
 	User_Task_MPU6050_Init();	//初始化陀螺仪
+	
 	User_Task_OLED_Init();		//初始化OLED
 
 	/**********************************************************
@@ -57,7 +58,7 @@ static MPU6050_t mpu6050_date = {0};
 void User_Task_MPU6050_Update(void){
 	// 处理 MPU6050 数据
 	if(mpu_ready)
-		MPU6050_Read_All(&hi2c2, &mpu6050_date, 5.0); // 读取 MPU6050 数据并进行姿态解算，采样频率为 200Hz
+		MPU6050_Read_All(&hi2c2, &mpu6050_date,300); // 读取 MPU6050 数据并进行姿态解算，采样频率为 300Hz
 	else
 		printf_dma("MPU not ready, please check initialization and calibration\r\n");
 }
@@ -157,9 +158,9 @@ void User_Task_key(void){
 			/* 再次确认是否依然为低电平 */
 			if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_RESET) 
 			{
-					/* 翻转 PC13 的电平 */
+					/* 翻转 PB12 的电平 */
 					HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
-        			BSP_Emm_V5_Pos_Control(2000);   //实际收到的01 FD 00 03 E8 00 00 00 07 D0 02 00 6B 
+        			BSP_Emm_V5_Pos_Control(250);   //实际收到的01 FD 00 03 E8 00 00 00 07 D0 02 00 6B 
 					/* 等待引脚释放（变为高电平），防止按住时持续翻转 */
 					while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_RESET)
 					{
@@ -176,7 +177,7 @@ void User_Task_key(void){
 			/* 再次确认是否依然为低电平 */
 			if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_RESET) 
 			{
-					/* 翻转 PC13 的电平 */
+					/* 翻转 PA8 的电平 */
 					HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
         			BSP_Emm_V5_Pos_Control(0);
 					/* 等待引脚释放（变为高电平），防止按住时持续翻转 */
@@ -196,9 +197,9 @@ void User_Task_key(void){
 			/* 再次确认是否依然为低电平 */
 			if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15) == GPIO_PIN_RESET) 
 			{
-					/* 翻转 PC13 的电平 */
+					/* 翻转 PA11 的电平 */
 					HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11);
-					BSP_Emm_V5_Pos_Control(-2000);
+					BSP_Emm_V5_Pos_Control(-250);
 					/* 等待引脚释放（变为高电平），防止按住时持续翻转 */
 					while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15) == GPIO_PIN_RESET)
 					{
@@ -208,4 +209,51 @@ void User_Task_key(void){
 	}
 }
 
+
+
+//##################################################################################################
+//********关于控制模块任务***************************************************************************
+//##################################################################################################
+//局部声明PID结构体,用于实现加速度控制电机
+static PID_t acceleration = {
+		17500.0f, 	//*KP
+		0.0f, 	//*KI
+		0.0f, 	//*KD
+		0, 			//当前误差
+		0, 			//上次误差
+		0, 			//积分(误差累计)
+		500, 		//*积分限幅
+		0,			//微分
+	
+		0,			//最终输出值
+		10000		//*输出限幅
+};//
+
+/**
+	* @brief	控制任务函数,在main函数的while循环中调用,用于处理控制逻辑,包括PID控制和电机控制
+	* @note		该函数会在主循环中被调用,用于处理控制逻辑,目前函数只是用来触发控制逻辑,和执行控制
+	* @param	无
+	* @retval	无
+	*/
+void User_Task_Control(void){
+	// 这里可以添加控制逻辑，例如 PID 控制和电机控制
+
+	//先拿到陀螺仪数据	
+	MPU6050_t mpu6050_control_date;					// 声明局部变量
+	User_Task_MPU6050_Get(&mpu6050_control_date);	// 获取陀螺仪数据
+
+	//获取当前x轴加速度,用于PID控制电机
+	double current_angle = mpu6050_control_date.Ay; // 获取当前y轴加速度
+	//转换成float类型,用于PID计算
+	float current_angle_float = (float)(current_angle+0.011532f);
+
+	//计算pid的输出
+	float pid_output = 0.0f;			//局部声明电机控制量,用于接收PID输出
+	pid_output = PID_Compute(&acceleration, 0.0f, current_angle_float, 0.02f); // 计算 PID 输出，目标值为 0.0f，测量值为 current_angle_float，时间间隔为 0.005 秒
+
+//	printf_dma("PID Output: %d\r\n", (int16_t)pid_output); // 打印 PID 输出值
+	//输出给电机
+	BSP_Emm_V5_Pos_Control((int16_t)pid_output);
+
+}
 
