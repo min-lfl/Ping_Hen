@@ -177,7 +177,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		User_Task_MPU6050_Update();	//执行陀螺仪任务,用于采样陀螺仪,一定要记得根据实际采样频率设置内部
 	}
 	
-	//频率50hz
+	//频率100hz
 	if (htim->Instance == TIM2) {
 			User_Task_Control();
 	}

@@ -9,8 +9,8 @@
 
 //########宏定义区#####
 #define EMM_V5_ADDR 1 //电机地址,这个项目只需要一个电
-#define EMM_V5_SPEED 20 //电机速度
-#define EMM_V5_ACC 0 //电机加速度
+#define EMM_V5_SPEED 120 //电机速度
+#define EMM_V5_ACC 80 //电机加速度
 #define EMM_V5_SNF false //电机snF
 
 

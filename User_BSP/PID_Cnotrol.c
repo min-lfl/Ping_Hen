@@ -14,9 +14,9 @@ float PID_Compute(PID_t *pid, float target, float measure, float dt){
 	pid->error=target-measure;	
 
 	//误差消除算法
-	if(pid->error<0.05f && pid->error>-0.05f){
-		pid->error=0.0f;
-	}
+//	if(pid->error<0.05f && pid->error>-0.05f){
+//		pid->error=0.0f;
+//	}
 
 	//计算积分(误差累加)
 	//小于2时才让积分介入

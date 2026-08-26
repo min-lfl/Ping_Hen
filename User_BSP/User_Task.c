@@ -216,7 +216,7 @@ void User_Task_key(void){
 //##################################################################################################
 //局部声明PID结构体,用于实现加速度控制电机
 static PID_t acceleration = {
-		17500.0f, 	//*KP
+		2000.0f, 	//*KP
 		0.0f, 	//*KI
 		0.0f, 	//*KD
 		0, 			//当前误差
@@ -249,7 +249,7 @@ void User_Task_Control(void){
 
 	//计算pid的输出
 	float pid_output = 0.0f;			//局部声明电机控制量,用于接收PID输出
-	pid_output = PID_Compute(&acceleration, 0.0f, current_angle_float, 0.02f); // 计算 PID 输出，目标值为 0.0f，测量值为 current_angle_float，时间间隔为 0.005 秒
+	pid_output = PID_Compute(&acceleration, 0.0f, current_angle_float, 0.01f); // 计算 PID 输出，目标值为 0.0f，测量值为 current_angle_float，时间间隔为 0.005 秒
 
 //	printf_dma("PID Output: %d\r\n", (int16_t)pid_output); // 打印 PID 输出值
 	//输出给电机
