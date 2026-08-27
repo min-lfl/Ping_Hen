@@ -6,11 +6,14 @@
 //########头文件引用区#####
 #include "main.h"
 #include "Emm_V5.h"
+#include "Control_Config.h"
+#include "BSP_Emm_V5.h"
+#include <stdio.h>
 
 //########宏定义区#####
 #define EMM_V5_ADDR 1 //电机地址,这个项目只需要一个电
-#define EMM_V5_SPEED 120 //电机速度
-#define EMM_V5_ACC 80 //电机加速度
+#define EMM_V5_SPEED CONTROL_MOTOR_SPEED_RPM //电机速度
+#define EMM_V5_ACC CONTROL_MOTOR_ACCEL_PARAM //电机加速度
 #define EMM_V5_SNF false //电机snF
 
 
@@ -19,6 +22,7 @@
 //###速度模式###
 
 //###位置模块###
-void BSP_Emm_V5_Pos_Control(int16_t pulse);     //绝对位置模式控制,输入int16位数据
+void BSP_Emm_V5_Pos_Init(void);
+void BSP_Emm_V5_Pos_Control(int32_t pulse);     //绝对位置模式控制,输入int32位数据
 
 #endif

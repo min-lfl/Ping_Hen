@@ -967,6 +967,11 @@
               <FileType>5</FileType>
               <FilePath>..\User_BSP\PID_Cnotrol.h</FilePath>
             </File>
+            <File>
+              <FileName>Control_Config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User_BSP\Control_Config.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

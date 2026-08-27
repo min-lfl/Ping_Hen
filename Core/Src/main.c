@@ -119,10 +119,10 @@ int main(void)
 	while (1)
 	{
 		
-//    User_Task_OLED_Update();  	//执行OLED任务,用于更新OLED屏幕显示
+		User_Task_OLED_Update();  	//执行OLED任务,用于更新OLED屏幕显示
 //    User_Task_UART_Update();  	//执行串口任务,用于更新串口数据传输
 		User_Task_key();  					//执行按键任务,按键任务目前包括,扫描三个按键,发送翻转对应LED灯以及电机位置模式正反转的功能
-
+		HAL_Delay(50);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -177,7 +177,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		User_Task_MPU6050_Update();	//执行陀螺仪任务,用于采样陀螺仪,一定要记得根据实际采样频率设置内部
 	}
 	
-	//频率100hz
+	//频率50hz
 	if (htim->Instance == TIM2) {
 			User_Task_Control();
 	}

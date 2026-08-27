@@ -36,4 +36,12 @@ void User_Task_key(void);             //按键任务函数,在main函数的while
 //***关于控制模块任务***
 void User_Task_Control(void);         //控制任务函数,在main函数的while循环中调用,用于处理控制逻辑,包括PID控制和电机控制
 
+extern volatile float control_debug_ay_filtered_g;
+extern volatile float control_debug_az_filtered_g;
+extern volatile float control_debug_target_angle_deg;
+extern volatile float control_debug_target_pulse;
+extern volatile float control_debug_command_pulse;
+extern volatile float control_debug_profile_speed;
+extern volatile uint8_t control_automatic_enabled;
+
 #endif
