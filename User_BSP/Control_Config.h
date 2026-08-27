@@ -11,7 +11,7 @@
 #define CONTROL_AUTOMATIC_ENABLE          (1)				//自动控制使能位
 
 /* 电机驱动器限制。ACC=0表示直接启动，此处不应使用 */
-#define CONTROL_MOTOR_SPEED_RPM           (5000)			//电机速度
+#define CONTROL_MOTOR_SPEED_RPM           (500)			//电机速度
 #define CONTROL_MOTOR_ACCEL_PARAM         (255)			//电机加速度
 #define CONTROL_MANUAL_TEST_PULSE         (250)			//手动控制极点(调参不需要改)
 
@@ -30,7 +30,7 @@
 #define CONTROL_MAX_RELATIVE_PULSE        (250)			//上限位
 
 /* 软件S曲线限制，以电机脉冲单位表示。 */
-#define CONTROL_PROFILE_NATURAL_HZ        (3.0f)
+#define CONTROL_PROFILE_NATURAL_HZ        (3.5f)
 #define CONTROL_PROFILE_DAMPING           (1.0f)
 #define CONTROL_MAX_PULSE_SPEED           (2500.0f)   /* pulse/s */
 #define CONTROL_MAX_PULSE_ACCEL           (30000.0f)  /* pulse/s^2 */

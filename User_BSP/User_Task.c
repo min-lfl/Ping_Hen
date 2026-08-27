@@ -27,13 +27,13 @@ typedef struct {
  * measured rod angle at the corresponding motor pulse.
  */
 static const LinkageCalPoint_t linkage_cal_table[] = {
-	{-3.975f, -250},
-	{-2.683f, -167},
-	{-1.832f,  -83},
+	{-4.525f, -250},
+	{-3.123f, -167},
+	{-2.432f,  -83},
 	{ 0.000f,    0},
 	{ 2.826f,   83},
-	{ 4.383f,  167},
-	{ 5.975f,  250},
+	{ 4.783f,  167},
+	{ 6.475f,  250},
 };
 
 volatile float control_debug_ay_filtered_g = 0.0f;
@@ -246,6 +246,7 @@ void User_Task_UART_Update(void){
 	* @param	无
 	* @retval	无
 	*/
+volatile uint16_t UPdate_Manual_PULSE = CONTROL_MANUAL_TEST_PULSE;
 void User_Task_key(void){
 	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_RESET) 
 	{
@@ -257,7 +258,7 @@ void User_Task_key(void){
 			{
 					/* 翻转 PB12 的电平 */
 					HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
-					BSP_Emm_V5_Pos_Control(CONTROL_LEVEL_PULSE + CONTROL_MANUAL_TEST_PULSE);
+					BSP_Emm_V5_Pos_Control(CONTROL_LEVEL_PULSE + UPdate_Manual_PULSE);
 					/* 等待引脚释放（变为高电平），防止按住时持续翻转 */
 					while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_RESET)
 					{
@@ -303,7 +304,7 @@ void User_Task_key(void){
 			{
 					/* 翻转 PA11 的电平 */
 					HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11);
-					BSP_Emm_V5_Pos_Control(CONTROL_LEVEL_PULSE - CONTROL_MANUAL_TEST_PULSE);
+					BSP_Emm_V5_Pos_Control(CONTROL_LEVEL_PULSE - UPdate_Manual_PULSE);
 					/* 等待引脚释放（变为高电平），防止按住时持续翻转 */
 					while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_15) == GPIO_PIN_RESET)
 					{
