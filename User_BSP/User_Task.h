@@ -16,7 +16,8 @@
 ///#########函数声明区域########
 void User_Task_Init(void);  //任务初始化函数,在main函数中调用,用于初始化所有任务,包括硬件初始化和软件初始化
 
-
+//***关于参数更新函数任务***
+void User_Task_Param_Update(void);    //参数更新任务函数,在main函数的while循环中调用,用于更新系统参数
 
 //***关于陀螺仪模块任务***
 void User_Task_MPU6050_Init(void);               //陀螺仪任务初始化函数
@@ -35,6 +36,9 @@ void User_Task_key(void);             //按键任务函数,在main函数的while
 
 //***关于控制模块任务***
 void User_Task_Control(void);         //控制任务函数,在main函数的while循环中调用,用于处理控制逻辑,包括PID控制和电机控制
+
+
+
 
 extern volatile float control_debug_ay_filtered_g;
 extern volatile float control_debug_az_filtered_g;

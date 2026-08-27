@@ -1,4 +1,4 @@
-﻿#include "User_Task.H"
+#include "User_Task.H"
 #include "Control_Config.h"
 #include <math.h>
 
@@ -79,6 +79,26 @@ void User_Task_Init(void){
 	HAL_Delay(5);
 	Control_Init();
 }
+
+//##################################################################################################
+//********关于参数更新模块任务***************************************************************************
+//##################################################################################################
+/**
+	* @brief	参数更新任务函数,在main函数的while循环中调用,用于更新系统参数
+	* @note		无
+	* @param	无
+	* @retval	无
+	*/
+volatile uint16_t UPdate_Speed_RPM = CONTROL_MOTOR_SPEED_RPM;
+volatile uint8_t UPdate_Accel_Param = CONTROL_MOTOR_ACCEL_PARAM;
+void User_Task_Param_Update(void){	
+	Emm_V5_Set_QPos_Params(1,
+	                   UPdate_Speed_RPM,
+	                   UPdate_Accel_Param,
+	                   0x01,
+	                   EMM_V5_SNF);
+}
+
 
 //##################################################################################################
 //********关于陀螺仪模块任务**************************************************************************
@@ -178,12 +198,12 @@ void User_Task_OLED_Update(void){
 	ssd1306_Fill(Black);			//清空屏幕缓冲区
 
 	ssd1306_SetCursor(10, 20);									//锁定打印位置
-	sprintf(str_buff, "Count: %d", CONTROL_MOTOR_SPEED_RPM);	//组合打印内容,这里是把数字变成字符
+	sprintf(str_buff, "Count: %d", UPdate_Speed_RPM);	//组合打印内容,这里是把数字变成字符
 	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
 
 
 	ssd1306_SetCursor(10, 40);									//锁定打印位置
-	sprintf(str_buff, "Count: %d", CONTROL_MOTOR_ACCEL_PARAM);	//组合打印内容,这里是把数字变成字符
+	sprintf(str_buff, "Count: %d", UPdate_Accel_Param);	//组合打印内容,这里是把数字变成字符
 	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
 	ssd1306_UpdateScreen_DMA();	
 
@@ -499,4 +519,7 @@ void User_Task_Control(void){
 		control_command_sent = 1;
 	}
 }
+
+
+
 

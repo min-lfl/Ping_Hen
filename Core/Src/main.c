@@ -118,11 +118,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		
+		User_Task_Param_Update();		//执行参数更新任务
 		User_Task_OLED_Update();  	//执行OLED任务,用于更新OLED屏幕显示
-//    User_Task_UART_Update();  	//执行串口任务,用于更新串口数据传输
+//    User_Task_UART_Update();  //执行串口任务,用于更新串口数据传输
 		User_Task_key();  					//执行按键任务,按键任务目前包括,扫描三个按键,发送翻转对应LED灯以及电机位置模式正反转的功能
-		HAL_Delay(50);
+		HAL_Delay(200);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
