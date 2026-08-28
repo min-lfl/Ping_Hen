@@ -73,7 +73,7 @@ uint8_t MPU6050_Init(I2C_HandleTypeDef *I2Cx)
 
     HAL_I2C_Mem_Read(I2Cx, MPU6050_ADDR, WHO_AM_I_REG, 1, &check, 1, i2c_timeout);
 		
-    if (check == 0x68) // 如果一切顺利，传感器将返回0x70
+    if (check == 0x70) // 如果一切顺利，传感器将返回0x70
     {
 				
         // 电源管理寄存器 0X6B，需写入全 0 以唤醒传感器
