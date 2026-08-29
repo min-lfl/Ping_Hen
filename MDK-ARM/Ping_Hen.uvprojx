@@ -1042,6 +1042,16 @@
               <FileType>5</FileType>
               <FilePath>..\User_Drivers\Emm_V5.h</FilePath>
             </File>
+            <File>
+              <FileName>Laser_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User_Drivers\Laser_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>Laser_uart.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User_Drivers\Laser_uart.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

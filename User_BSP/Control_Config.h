@@ -6,7 +6,7 @@
 
 
 /* 采样率必须与TIM1和TIM2匹配。*/
-#define CONTROL_IMU_SAMPLE_HZ             300.0f		//Time1的频率
+#define CONTROL_IMU_SAMPLE_HZ             300.0f		//Time1的频率,陀螺仪读取频率
 #define CONTROL_LOOP_HZ                   100.0f		//Time2的频率
 #define CONTROL_AUTOMATIC_ENABLE          (1)				//自动控制使能位
 
@@ -20,6 +20,9 @@
 #define CONTROL_ACCEL_Z_BIAS_G            (0.0f)		//z轴恒定偏移加减校准
 #define CONTROL_ACCEL_TO_ROD_SIGN         (-1.0f)		//自动控制方向
 #define CONTROL_ACCEL_INPUT_LIMIT_G       (0.30f)		//最大加速度输入限制
+
+
+//#########加速度补偿(方案1已弃用)专属参数######
 
 /* 低通滤波频率。提高以减少延迟，降低以减少抖动。 */
 #define CONTROL_ACCEL_LPF_POLE_HZ         (26.0f)		//低通滤波频率
@@ -41,5 +44,7 @@
 #define CONTROL_SETTLE_POSITION_PULSE     (0.35f)
 #define CONTROL_SETTLE_SPEED_PULSE_S      (5.0f)
 #define CONTROL_SETTLE_ACCEL_PULSE_S2     (100.0f)
+
+//#########速度环位置环控制方案(方案1已弃用)专属参数######
 
 #endif

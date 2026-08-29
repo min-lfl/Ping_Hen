@@ -104,6 +104,7 @@ int main(void)
   MX_I2C2_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 	User_Task_Init(); //初始化任务模块,包括陀螺仪模块和按键模块
 	
@@ -112,6 +113,7 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim2);	//定时器初始化
 	
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
+	
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -122,7 +124,7 @@ int main(void)
 		User_Task_OLED_Update();  	//执行OLED任务,用于更新OLED屏幕显示
 //    User_Task_UART_Update();  //执行串口任务,用于更新串口数据传输
 		User_Task_key();  					//执行按键任务,按键任务目前包括,扫描三个按键,发送翻转对应LED灯以及电机位置模式正反转的功能
-		HAL_Delay(200);
+		HAL_Delay(10);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

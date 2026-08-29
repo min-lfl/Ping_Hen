@@ -2,60 +2,6 @@
 #include "Control_Config.h"
 #include <math.h>
 
-#define CONTROL_RAD_TO_DEG (57.2957795f)
-
-typedef struct {
-	float rod_angle_deg;
-	int32_t motor_pulse;
-} LinkageCalPoint_t;
-
-typedef struct {
-	float stage_1;
-	float stage_2;
-	uint8_t initialized;
-} ControlLowPass_t;
-
-typedef struct {
-	float position;
-	float velocity;
-	float acceleration;
-} ControlMotion_t;
-
-/*
- * LINKAGE CALIBRATION TABLE
- * Keep rod_angle_deg strictly increasing. Replace each angle with the
- * measured rod angle at the corresponding motor pulse.
- */
-static const LinkageCalPoint_t linkage_cal_table[] = {
-	{-4.525f, -250},
-	{-3.123f, -167},
-	{-2.432f,  -83},
-	{ 0.000f,    0},
-	{ 2.826f,   83},
-	{ 4.783f,  167},
-	{ 6.475f,  250},
-};
-
-volatile float control_debug_ay_filtered_g = 0.0f;
-volatile float control_debug_az_filtered_g = 1.0f;
-volatile float control_debug_target_angle_deg = 0.0f;
-volatile float control_debug_target_pulse = 0.0f;
-volatile float control_debug_command_pulse = 0.0f;
-volatile float control_debug_profile_speed = 0.0f;
-volatile uint8_t control_automatic_enabled = CONTROL_AUTOMATIC_ENABLE;
-
-static ControlLowPass_t control_ay_filter = {0};
-static ControlLowPass_t control_az_filter = {0};
-static ControlMotion_t control_motion = {0};
-static volatile float control_target_pulse = (float)CONTROL_LEVEL_PULSE;
-static volatile uint8_t control_target_valid = 0;
-static int32_t control_last_sent_pulse = CONTROL_LEVEL_PULSE;
-static uint8_t control_command_sent = 0;
-
-static void Control_Init(void);
-static void Control_Input_Update(float ay_g, float az_g);
-static float Control_Motion_Update(float target_pulse);
-
 /**
 	* @brief	任务初始化函数,在main函数中调用,用于初始化所有任务,包括硬件初始化和软件初始化
 	* @note		目前的设计思路,所有模块的初始化方式不同,下面会定义所有模块的独特初始化方式封装成函数(轮询,等待,多少次读取,校准逻辑)
@@ -78,6 +24,8 @@ void User_Task_Init(void){
 	BSP_Emm_V5_Pos_Init();
 	HAL_Delay(5);
 	Control_Init();
+	
+	User_Task_Laser_UART_Init();
 }
 
 //##################################################################################################
@@ -159,6 +107,44 @@ void User_Task_MPU6050_Get(MPU6050_t* data){
 }
 
 //##################################################################################################
+//**********************关于激光串口模块任务**********************************************************
+//##################################################################################################
+/**
+	* @brief	激光串口任务初始化函数
+	* @note		该函数用于初始化激光串口相关的硬件和软件资源
+	* @param	无
+	* @retval	无
+	*/
+void User_Task_Laser_UART_Init(void){
+	Laser_UART_Init(&huart2);
+}
+
+
+/**
+	* @brief	激光串口任务函数,用于获取激光数据,以162读数为0点,小于162为负,大于162为正,单位毫米
+	* @note		该函数用于获取激光串口数据
+	* @param	无
+	* @retval	无
+	*/
+void User_Task_Laser_UART_Get(float *distance_mm){
+	if (distance_mm != NULL) {
+		//获取激光串口数据
+		if (Laser_UART_GetDistance(distance_mm)) {
+			//数据有效
+			if (*distance_mm < 187.0f) {
+				*distance_mm = *distance_mm - 187.0f;
+			} else if (*distance_mm > 187.0f) {
+				*distance_mm = *distance_mm - 187.0f;
+			}
+		} else {
+			//数据无效,可以设置一个默认值或者提示错误
+			*distance_mm = -1.0f; // 设置为 -1 表示无效数据
+		}
+	}
+}
+
+
+//##################################################################################################
 //**********************关于OLED模块任务*************************************************************
 //##################################################################################################
 
@@ -191,22 +177,30 @@ void User_Task_OLED_Update(void){
 	// ssd1306_Fill(Black);									//清空屏幕缓冲区
 	// ssd1306_SetCursor(10, 20);							//锁定打印位置
 	// ssd1306_WriteString(str_buff, Font_11x18, White);	//确定打印字符,大小,颜色
-	// ssd1306_UpdateScreen_DMA();							//刷新屏幕显示,使用DMA搬运数据,不会阻塞主循环
+	// ssd1306_UpdateScreen_IT();							//启动 I2C 中断刷新，函数立即返回，不阻塞主循环
 	
 	//现在想要显示参数,分别是CONTROL_MOTOR_SPEED_RPM和CONTROL_MOTOR_ACCEL_PARAM两个宏定义的值
 	static char str_buff[32];      // 字符缓存区（准备32字节足够装一句话了）
 	ssd1306_Fill(Black);			//清空屏幕缓冲区
 
-	ssd1306_SetCursor(10, 20);									//锁定打印位置
+	ssd1306_SetCursor(10, 10);									//锁定打印位置
 	sprintf(str_buff, "Count: %d", UPdate_Speed_RPM);	//组合打印内容,这里是把数字变成字符
 	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
 
-
-	ssd1306_SetCursor(10, 40);									//锁定打印位置
+	ssd1306_SetCursor(10, 30);									//锁定打印位置
 	sprintf(str_buff, "Count: %d", UPdate_Accel_Param);	//组合打印内容,这里是把数字变成字符
 	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
-	ssd1306_UpdateScreen_DMA();	
 
+	//打印激光数据
+	static float laser_distance_mm = 0.0f;
+	User_Task_Laser_UART_Get(&laser_distance_mm);	//获取激光数据
+
+	ssd1306_SetCursor(10, 50);									//锁定打印位置
+	sprintf(str_buff, "Laser: %.2f", laser_distance_mm);	//组合打印内容,这里是把数字变成字符
+	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
+
+	/* 启动 I2C 中断刷新；若上一帧尚未完成，本次调用会直接返回。 */
+	(void)ssd1306_UpdateScreen_IT();
 }
 
 
@@ -317,8 +311,59 @@ void User_Task_key(void){
 
 
 //##################################################################################################
-//********关于控制模块任务***************************************************************************
+//********关于加速度补偿控制模块任务(方案1已弃用)***************************************************************************
 //##################################################################################################
+#define CONTROL_RAD_TO_DEG (57.2957795f)
+
+typedef struct {
+	float rod_angle_deg;
+	int32_t motor_pulse;
+} LinkageCalPoint_t;
+
+typedef struct {
+	float stage_1;
+	float stage_2;
+	uint8_t initialized;
+} ControlLowPass_t;
+
+typedef struct {
+	float position;
+	float velocity;
+	float acceleration;
+} ControlMotion_t;
+
+/*
+ * LINKAGE CALIBRATION TABLE
+ * Keep rod_angle_deg strictly increasing. Replace each angle with the
+ * measured rod angle at the corresponding motor pulse.
+ */
+static const LinkageCalPoint_t linkage_cal_table[] = {
+	{-4.525f, -250},
+	{-3.123f, -167},
+	{-2.432f,  -83},
+	{ 0.000f,    0},
+	{ 2.826f,   83},
+	{ 4.783f,  167},
+	{ 6.475f,  250},
+};
+
+volatile float control_debug_ay_filtered_g = 0.0f;
+volatile float control_debug_az_filtered_g = 1.0f;
+volatile float control_debug_target_angle_deg = 0.0f;
+volatile float control_debug_target_pulse = 0.0f;
+volatile float control_debug_command_pulse = 0.0f;
+volatile float control_debug_profile_speed = 0.0f;
+volatile uint8_t control_automatic_enabled = CONTROL_AUTOMATIC_ENABLE;
+
+static ControlLowPass_t control_ay_filter = {0};
+static ControlLowPass_t control_az_filter = {0};
+static ControlMotion_t control_motion = {0};
+static volatile float control_target_pulse = (float)CONTROL_LEVEL_PULSE;
+static volatile uint8_t control_target_valid = 0;
+static int32_t control_last_sent_pulse = CONTROL_LEVEL_PULSE;
+static uint8_t control_command_sent = 0;
+
+
 static float Control_Clamp(float value, float minimum, float maximum)
 {
 	if (value < minimum)
@@ -482,7 +527,7 @@ static float Control_Motion_Update(float target_pulse)
 }
 
 /**
-	* @brief	控制任务函数,在main函数的while循环中调用,用于处理控制逻辑,包括PID控制和电机控制
+	* @brief	加速度补偿控制任务函数,在main函数的while循环中调用,用于处理控制逻辑,包括PID控制和电机控制
 	* @note		该函数会在主循环中被调用,用于处理控制逻辑,目前函数只是用来触发控制逻辑,和执行控制
 	* @param	无
 	* @retval	无
@@ -520,6 +565,9 @@ void User_Task_Control(void){
 		control_command_sent = 1;
 	}
 }
+
+
+
 
 
 

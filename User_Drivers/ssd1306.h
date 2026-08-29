@@ -181,9 +181,9 @@ void ssd1306_Polyline(const SSD1306_VERTEX *par_vertex, uint16_t par_size, SSD13
 void ssd1306_DrawRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
 void ssd1306_FillRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color);
 
-//发送方式(二选一)
-void ssd1306_UpdateScreen(void);			//普通I2C发送
-uint8_t ssd1306_UpdateScreen_DMA(void);// 呼叫 DMA 搬运发送（耗时 < 5 微秒，随后瞬间返回，绝不卡死主循环！）
+/* OLED 显存刷新方式（二选一）。 */
+void ssd1306_UpdateScreen(void);        // 阻塞式 I2C 发送，等待整帧传输完成后返回。
+uint8_t ssd1306_UpdateScreen_IT(void);  // 非阻塞 I2C 中断发送：0=已启动，1=忙或启动失败。
 /**
  * @brief Invert color of pixels in rectangle (include border)
  * 

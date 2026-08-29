@@ -593,41 +593,69 @@ uint8_t ssd1306_GetDisplayOn() {
 }
 
 
-/* 定义一个标志位，记录当前 DMA 是不是正在忙着刷屏 */
-static volatile uint8_t ssd1306_dma_busy = 0;
+/*
+ * I2C 中断发送期间，HAL 会持续读取发送缓冲区。
+ * 使用独立影子缓冲区可避免主循环绘制下一帧时修改正在发送的数据，
+ * 从而防止屏幕出现半帧新数据、半帧旧数据的撕裂现象。
+ */
+static uint8_t ssd1306_it_tx_buffer[SSD1306_BUFFER_SIZE];
+static volatile uint8_t ssd1306_it_busy = 0U;
 
 /**
- * @brief  非阻塞式 DMA 屏幕刷新函数
- * @return 0: 成功启动DMA传输; 1: 上一次传输未完成(忙)
+ * @brief  使用 I2C 事件中断非阻塞刷新整个 OLED 显存。
+ * @return 0: 成功启动中断发送；1: 上次发送未完成或本次启动失败。
+ *
+ * @note 调用后函数立即返回，实际发送由 I2C1_EV_IRQHandler() 驱动完成。
+ *       调用者可以根据返回值决定是否在下一轮任务中重新尝试刷新。
  */
-uint8_t ssd1306_UpdateScreen_DMA(void) {
-    // 如果上一次的 1024 字节还没搬完，直接退出，不阻塞
-    if (ssd1306_dma_busy) {
-        return 1; 
+uint8_t ssd1306_UpdateScreen_IT(void) {
+    HAL_StatusTypeDef status;
+
+    /* 上一帧尚未发送完时直接返回，避免重复启动产生 HAL_BUSY。 */
+    if (ssd1306_it_busy != 0U) {
+        return 1U;
     }
 
-    // 设置为忙碌状态
-    ssd1306_dma_busy = 1;
+    ssd1306_it_busy = 1U;
 
-    // 非阻塞启动 DMA 传输整个 1024 字节的显存 (SSD1306_Buffer)
-    // 0x40 是 OLED 的数据寄存器地址
-    if (HAL_I2C_Mem_Write_DMA(&SSD1306_I2C_PORT, SSD1306_I2C_ADDR, 0x40, 1, SSD1306_Buffer, SSD1306_BUFFER_SIZE) != HAL_OK) {
-        // 如果启动失败（比如I2C被占或故障），立刻释放忙碌标志
-        ssd1306_dma_busy = 0;
-        return 1;
+    /*
+     * 中断发送约持续 23 ms（400 kHz、1024 字节），发送源在此期间必须
+     * 保持不变。因此先制作当前完整画面的快照，再交给 HAL 后台发送。
+     */
+    memcpy(ssd1306_it_tx_buffer, SSD1306_Buffer, SSD1306_BUFFER_SIZE);
+
+    status = HAL_I2C_Mem_Write_IT(&SSD1306_I2C_PORT,
+                                  SSD1306_I2C_ADDR,
+                                  0x40U,
+                                  I2C_MEMADD_SIZE_8BIT,
+                                  ssd1306_it_tx_buffer,
+                                  SSD1306_BUFFER_SIZE);
+    if (status != HAL_OK) {
+        /* I2C 被占用或启动失败时允许应用层下一次重新尝试。 */
+        ssd1306_it_busy = 0U;
+        return 1U;
     }
 
-    return 0;
+    return 0U;
 }
 
 /**
- * @brief  HAL 库的 I2C 内存传输完成中断回调函数
- *         当 1024 字节搬完的一瞬间，硬件会自动跳进这个函数
+ * @brief HAL I2C 内存写完成回调，释放 OLED 发送状态。
  */
 void HAL_I2C_MemTxCpltCallback(I2C_HandleTypeDef *hi2c) {
-    if (hi2c->Instance == SSD1306_I2C_PORT.Instance) {
-        // 搬运完成，释放标志位，允许下一次刷新
-        ssd1306_dma_busy = 0; 
+    if (hi2c == &SSD1306_I2C_PORT) {
+        ssd1306_it_busy = 0U;
     }
 }
 
+/**
+ * @brief HAL I2C 错误回调。
+ *
+ * 若发送过程中出现应答失败、总线错误等异常，也必须释放忙状态，
+ * 否则 OLED 刷新函数会永久认为上一帧仍未完成。
+ */
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
+    if (hi2c == &SSD1306_I2C_PORT) {
+        ssd1306_it_busy = 0U;
+    }
+}
