@@ -28,8 +28,8 @@
 
 /* 绝对电机零点和安全联动行程，以电机脉冲为单位。 */
 #define CONTROL_LEVEL_PULSE               (0)				//电机零点
-#define CONTROL_MIN_RELATIVE_PULSE        (-250)		//下限位
-#define CONTROL_MAX_RELATIVE_PULSE        (250)			//上限位
+#define CONTROL_MIN_RELATIVE_PULSE        (-280)		//下限位
+#define CONTROL_MAX_RELATIVE_PULSE        (280)			//上限位
 
 /* 软件S曲线限制，以电机脉冲单位表示。 */
 #define CONTROL_PROFILE_NATURAL_HZ        (3.5f)
@@ -73,24 +73,24 @@
 #define BALL_CONTROL_POLARITY                    (1.0f)
 
 /* 位置外环 PID：输出为小球目标速度(mm/s)，建议先只调 Kp。 */
-#define BALL_POSITION_KP                         (0.90f)
-#define BALL_POSITION_KI                         (0.60f)
+#define BALL_POSITION_KP                         (0.649999976f)
+#define BALL_POSITION_KI                         (0.600000024f)
 #define BALL_POSITION_KD                         (0.00f)
 #define BALL_POSITION_INTEGRAL_LIMIT_MM_SEC      (100.0f)  // 位置误差积分限幅，单位 mm*s。
-#define BALL_POSITION_MAX_TARGET_SPEED_MM_S      (250.0f)
+#define BALL_POSITION_MAX_TARGET_SPEED_MM_S      (280.0f)
 #define BALL_POSITION_DEADBAND_MM                 (1.5f)
 #define BALL_TARGET_SPEED_SLEW_MM_S2              (800.0f)  // 外环目标速度最大变化率。
 
 /* 速度内环 PID：输出为相对水平位置的电机脉冲数。 */
-#define BALL_SPEED_KP                            (1.8f)
+#define BALL_SPEED_KP                            (0.899999976f)
 #define BALL_SPEED_KI                            (0.0f)
-#define BALL_SPEED_KD                            (0.9f)
+#define BALL_SPEED_KD                            (0.800000012f)
 #define BALL_SPEED_INTEGRAL_LIMIT_MM             (300.0f)
 #define BALL_SPEED_DEADBAND_MM_S                  (3.0f)
 
 /* 电机绝对位置、安全行程和命令整形参数。 */
 #define BALL_MOTOR_LEVEL_PULSE                    (0)       // 管道水平时的电机绝对位置。
-#define BALL_MOTOR_MIN_RELATIVE_PULSE             (-250)    // 相对水平位置的最小安全行程。
+#define BALL_MOTOR_MIN_RELATIVE_PULSE             (-280)    // 相对水平位置的最小安全行程。
 #define BALL_MOTOR_MAX_RELATIVE_PULSE             (280)     // 相对水平位置的最大安全行程。
 #define BALL_MOTOR_MAX_CONTROL_PULSE              (250.0f)  // PID 可使用的最大相对脉冲。
 #define BALL_MOTOR_PULSE_SLEW_PER_SECOND          (1200.0f) // 电机目标位置每秒最大变化脉冲数。
