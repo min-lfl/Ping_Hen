@@ -73,8 +73,8 @@
 #define BALL_CONTROL_POLARITY                    (1.0f)
 
 /* 位置外环 PID：输出为小球目标速度(mm/s)，建议先只调 Kp。 */
-#define BALL_POSITION_KP                         (1.00f)
-#define BALL_POSITION_KI                         (0.00f)
+#define BALL_POSITION_KP                         (0.90f)
+#define BALL_POSITION_KI                         (0.60f)
 #define BALL_POSITION_KD                         (0.00f)
 #define BALL_POSITION_INTEGRAL_LIMIT_MM_SEC      (100.0f)  // 位置误差积分限幅，单位 mm*s。
 #define BALL_POSITION_MAX_TARGET_SPEED_MM_S      (250.0f)
