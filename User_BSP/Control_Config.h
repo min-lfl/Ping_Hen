@@ -59,7 +59,7 @@
 #define BALL_CONTROL_POSITION_LOOP_HZ           (10.0f)   // 建议位置外环 10 Hz。
 
 /* 激光测距与速度估算参数。 */
-#define BALL_CONTROL_LASER_ORIGIN_MM             (187.0f)  // 传感器原始读数为该值时，小球位于人为规定的 0 点。
+#define BALL_CONTROL_LASER_ORIGIN_MM             (190.0f)  // 传感器原始读数为该值时，小球位于人为规定的 0 点。
 #define BALL_CONTROL_TARGET_POSITION_MM          (0.0f)    // 小球目标位置，单位 mm。
 #define BALL_CONTROL_NEW_SAMPLE_EPSILON_MM       (0.05f)   // 位置变化超过该值才认为激光产生了一个新样本。
 #define BALL_CONTROL_SPEED_FILTER_HZ             (3.0f)    // 差分速度的一阶低通截止频率。

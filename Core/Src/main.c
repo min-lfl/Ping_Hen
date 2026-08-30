@@ -188,7 +188,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	
 	//频率10hz,外环位置环
 	if (htim->Instance == TIM3) {
-//			User_Task_Position_Control();  // 在 BALL_CONTROL_POSITION_LOOP_HZ 对应的固定频率定时中断中调用。
+			User_Task_Position_Control();  // 在 BALL_CONTROL_POSITION_LOOP_HZ 对应的固定频率定时中断中调用。
 	}
 }
 /* USER CODE END 4 */
