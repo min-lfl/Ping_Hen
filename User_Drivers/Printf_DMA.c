@@ -5,7 +5,7 @@
 void printf_dma(const char *format, ...) {
     // 1. 等待上一次 DMA 发送完成（防止覆盖正在发送的数据）
     // 判断串口是否处于就绪状态
-    while (huart1.gState != HAL_UART_STATE_READY) {
+    while (huart2.gState != HAL_UART_STATE_READY) {
         // 等待，或者加上超时处理
     }
 
@@ -18,7 +18,7 @@ void printf_dma(const char *format, ...) {
 
     // 3. 启动 DMA 发送
     if (length > 0) {
-        HAL_UART_Transmit_DMA(&huart1, UartTxBuf, length);
+        HAL_UART_Transmit_DMA(&huart2, UartTxBuf, length);
 				
     }
 }

@@ -49,9 +49,6 @@ void User_Task_MPU6050_Get(MPU6050_t* data);     //陀螺仪任务函数,用于�
 void User_Task_Laser_UART_Init(void);                //激光串口任务初始化函数,由于用的是中断加DMA接收,所以不需要在while循环中调用,只需要在main函数中调用一次即可,用于初始化激光串口相关的硬件和软件资源
 void User_Task_Laser_UART_Get(float *distance_mm);   //激光串口任务函数,用于获取激光数据,读数直接就是关于原点距离,单位毫米
 
-//*** 关于串口任务***
-void User_Task_UART_Update(void);     //串口任务函数,在main函数的while循环中调用,用于更新串口数据传输
-
 //***关于按键模块任务***
 void User_Task_key(void);             //按键任务函数,在main函数的while循环中调用,用于处理按键事件
 
@@ -71,5 +68,9 @@ void User_Task_Position_Control(void);  // 在 BALL_CONTROL_POSITION_LOOP_HZ 对
 //***关于OLED模块任务***
 void User_Task_OLED_Init(void);       //OLED任务初始化函数
 void User_Task_OLED_Update(void);     //OLED任务函数,在main函数的while循环中调用,用于更新OLED屏幕显示
+
+
+//*** 关于串口任务***
+void User_Task_UART_Update(void);     //串口任务函数,在main函数的while循环中调用,用于更新串口数据传输
 
 #endif

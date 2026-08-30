@@ -114,6 +114,7 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim2);	//定时器初始化
 	HAL_TIM_Base_Start_IT(&htim3);	//定时器初始化
 	
+	//翻转电平表示初始化成功
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
 	
   /* USER CODE END 2 */
@@ -124,7 +125,7 @@ int main(void)
 	{
 		User_Task_Param_Update();		//执行参数更新任务
 		User_Task_OLED_Update();  	//执行OLED任务,用于更新OLED屏幕显示
-//    User_Task_UART_Update();  //执行串口任务,用于更新串口数据传输
+    User_Task_UART_Update();  //执行串口任务,用于更新串口数据传输
 		User_Task_key();  					//执行按键任务,按键任务目前包括,扫描三个按键,发送翻转对应LED灯以及电机位置模式正反转的功能
 		HAL_Delay(30);
     /* USER CODE END WHILE */

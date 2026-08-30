@@ -143,33 +143,6 @@ void User_Task_Laser_UART_Get(float *distance_mm){
 
 
 //##################################################################################################
-//********关于串口模块任务***************************************************************************
-//##################################################################################################
-/**
-	* @brief	串口任务函数,在main函数的while循环中调用,用于更新串口数据传输
-	* @note		该函数会在主循环中被调用,用于更新串口数据传输,目前函数只是用来触发发送,和发送数据
-	* @param	无
-	* @retval	无
-	*/
-void User_Task_UART_Update(void){
-	MPU6050_t mpu6050_date = {0};			//声明局部结构体
-	User_Task_MPU6050_Get(&mpu6050_date);	//获取陀螺仪数据
-
-	printf_dma("x轴加速度%d x轴角速度%d \r\n", mpu6050_date.Accel_X_RAW, mpu6050_date.Gyro_X_RAW);
-	printf_dma("y轴加速度%d y轴角速度%d \r\n", mpu6050_date.Accel_Y_RAW, mpu6050_date.Gyro_Y_RAW);
-	printf_dma("z轴加速度%d z轴角速度%d \r\n", mpu6050_date.Accel_Z_RAW, mpu6050_date.Gyro_Z_RAW);
-	printf_dma(" \r\n");
-	printf_dma("转化后x轴加速度%f g 转化后x轴角速度%f 度/s \r\n", mpu6050_date.Ax, mpu6050_date.Gx);
-	printf_dma("转化后y轴加速度%f g 转化后y轴角速度%f 度/s \r\n", mpu6050_date.Ay, mpu6050_date.Gy);
-	printf_dma("转化后z轴加速度%f g 转化后z轴角速度%f 度/s \r\n", mpu6050_date.Az, mpu6050_date.Gz);
-	printf_dma(" \r\n");
-	printf_dma("当前x轴姿态角%f 度 \r\n", mpu6050_date.KalmanAngleX);
-	printf_dma("当前y轴姿态角%f 度 \r\n", mpu6050_date.KalmanAngleY);
-	printf_dma(" \r\n");
-}
-
-
-//##################################################################################################
 //********关于按键模块任务***************************************************************************
 //##################################################################################################
 /**
@@ -890,5 +863,46 @@ void User_Task_OLED_Update(void){
 
 	/* 启动 I2C 中断刷新；若上一帧尚未完成，本次调用会直接返回。 */
 	(void)ssd1306_UpdateScreen_IT();
+}
+
+
+
+
+//##################################################################################################
+//********关于串口模块任务***************************************************************************
+//##################################################################################################
+/**
+	* @brief	串口任务函数,在main函数的while循环中调用,用于更新串口数据传输
+	* @note		该函数会在主循环中被调用,用于更新串口数据传输,目前函数只是用来触发发送,和发送数据
+	* @param	无
+	* @retval	无
+	*/
+void User_Task_UART_Update(void){
+	//关于陀螺仪数据打印
+//	MPU6050_t mpu6050_date = {0};			//声明局部结构体
+//	User_Task_MPU6050_Get(&mpu6050_date);	//获取陀螺仪数据
+
+//	printf_dma("x轴加速度%d x轴角速度%d \r\n", mpu6050_date.Accel_X_RAW, mpu6050_date.Gyro_X_RAW);
+//	printf_dma("y轴加速度%d y轴角速度%d \r\n", mpu6050_date.Accel_Y_RAW, mpu6050_date.Gyro_Y_RAW);
+//	printf_dma("z轴加速度%d z轴角速度%d \r\n", mpu6050_date.Accel_Z_RAW, mpu6050_date.Gyro_Z_RAW);
+//	printf_dma(" \r\n");
+//	printf_dma("转化后x轴加速度%f g 转化后x轴角速度%f 度/s \r\n", mpu6050_date.Ax, mpu6050_date.Gx);
+//	printf_dma("转化后y轴加速度%f g 转化后y轴角速度%f 度/s \r\n", mpu6050_date.Ay, mpu6050_date.Gy);
+//	printf_dma("转化后z轴加速度%f g 转化后z轴角速度%f 度/s \r\n", mpu6050_date.Az, mpu6050_date.Gz);
+//	printf_dma(" \r\n");
+//	printf_dma("当前x轴姿态角%f 度 \r\n", mpu6050_date.KalmanAngleX);
+//	printf_dma("当前y轴姿态角%f 度 \r\n", mpu6050_date.KalmanAngleY);
+//	printf_dma(" \r\n");
+	
+	//vofa+波形图测试代码
+	static uint8_t status_print=0;
+	if(status_print==0){
+		printf_dma("d: %f, %f\n", 100.0f,200.0f);
+		status_print=1;
+	}else{
+		printf_dma("d: %f, %f\n", -100.0f,-200.0f);
+		status_print=0;
+	}
+	
 }
 
