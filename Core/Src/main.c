@@ -105,12 +105,14 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_USART2_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 	User_Task_Init(); //初始化任务模块,包括陀螺仪模块和按键模块
 	
 	//#######初始化之后才可以开启中断#############
 	HAL_TIM_Base_Start_IT(&htim1);	//定时器初始化
 	HAL_TIM_Base_Start_IT(&htim2);	//定时器初始化
+	HAL_TIM_Base_Start_IT(&htim3);	//定时器初始化
 	
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_12);
 	
@@ -176,12 +178,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	//频率300hz
 	if (htim->Instance == TIM1) {
-		User_Task_MPU6050_Update();	//执行陀螺仪任务,用于采样陀螺仪,一定要记得根据实际采样频率设置内部
+//		User_Task_MPU6050_Update();	//执行陀螺仪任务,用于采样陀螺仪,一定要记得根据实际采样频率设置内部
 	}
 	
-	//频率50hz
+	//频率100hz,内环速度环
 	if (htim->Instance == TIM2) {
-			User_Task_Control();
+			User_Task_Speed_Control();     // 在 BALL_CONTROL_SPEED_LOOP_HZ 对应的固定频率定时中断中调用。
+	}
+	
+	//频率10hz,外环位置环
+	if (htim->Instance == TIM3) {
+//			User_Task_Position_Control();  // 在 BALL_CONTROL_POSITION_LOOP_HZ 对应的固定频率定时中断中调用。
 	}
 }
 /* USER CODE END 4 */

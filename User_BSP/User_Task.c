@@ -121,87 +121,25 @@ void User_Task_Laser_UART_Init(void){
 
 
 /**
-	* @brief	激光串口任务函数,用于获取激光数据,以162读数为0点,小于162为负,大于162为正,单位毫米
-	* @note		该函数用于获取激光串口数据
-	* @param	无
+	* @brief	获取激光后台缓存的最新位置，正数在原点右侧，负数在原点左侧。
+	* @note		本函数只获取缓存，不会主动读取串口；有效状态见 ball_control_laser_valid。
+	* @param	distance_mm 输出相对 BALL_CONTROL_LASER_ORIGIN_MM 的位置，单位 mm。
 	* @retval	无
 	*/
 void User_Task_Laser_UART_Get(float *distance_mm){
 	if (distance_mm != NULL) {
-		//获取激光串口数据
 		if (Laser_UART_GetDistance(distance_mm)) {
-			//数据有效
-			if (*distance_mm < 187.0f) {
-				*distance_mm = *distance_mm - 187.0f;
-			} else if (*distance_mm > 187.0f) {
-				*distance_mm = *distance_mm - 187.0f;
-			}
+			*distance_mm -= BALL_CONTROL_LASER_ORIGIN_MM;
+			__DMB();
+			ball_control_laser_valid = 1U;
 		} else {
-			//数据无效,可以设置一个默认值或者提示错误
-			*distance_mm = -1.0f; // 设置为 -1 表示无效数据
+			ball_control_laser_valid = 0U;
+			*distance_mm = 0.0f;
 		}
 	}
 }
 
 
-//##################################################################################################
-//**********************关于OLED模块任务*************************************************************
-//##################################################################################################
-
-/**
-	* @brief	OLED任务初始化函数
-	* @note		该函数用于初始化OLED相关的硬件和软件资源
-	* @param	无
-	* @retval	无
-	*/
-void User_Task_OLED_Init(void){
-//初始化 OLED 屏幕
-ssd1306_Init();
-//清空屏幕显存 (全部填充满黑色)
-ssd1306_Fill(Black);
-
-}
-
-
-/**
-	* @brief	OLED任务函数,在main函数的while循环中调用,用于更新OLED屏幕显示
-	* @note		该函数会在主循环中被调用,用于更新OLED屏幕显示,目前函数只是用来触发更新,和显示
-	* @param	无
-	* @retval	无
-	*/
-void User_Task_OLED_Update(void){
-	// static int my_count = 0;       // 自加的数字
-	// static char str_buff[32];      // 字符缓存区（准备32字节足够装一句话了）
-	// my_count++;					   // 自加
-	// sprintf(str_buff, "Count: %d", my_count);			//组合打印内容,这里是把数字变成字符
-	// ssd1306_Fill(Black);									//清空屏幕缓冲区
-	// ssd1306_SetCursor(10, 20);							//锁定打印位置
-	// ssd1306_WriteString(str_buff, Font_11x18, White);	//确定打印字符,大小,颜色
-	// ssd1306_UpdateScreen_IT();							//启动 I2C 中断刷新，函数立即返回，不阻塞主循环
-	
-	//现在想要显示参数,分别是CONTROL_MOTOR_SPEED_RPM和CONTROL_MOTOR_ACCEL_PARAM两个宏定义的值
-	static char str_buff[32];      // 字符缓存区（准备32字节足够装一句话了）
-	ssd1306_Fill(Black);			//清空屏幕缓冲区
-
-	ssd1306_SetCursor(10, 10);									//锁定打印位置
-	sprintf(str_buff, "Count: %d", UPdate_Speed_RPM);	//组合打印内容,这里是把数字变成字符
-	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
-
-	ssd1306_SetCursor(10, 30);									//锁定打印位置
-	sprintf(str_buff, "Count: %d", UPdate_Accel_Param);	//组合打印内容,这里是把数字变成字符
-	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
-
-	//打印激光数据
-	static float laser_distance_mm = 0.0f;
-	User_Task_Laser_UART_Get(&laser_distance_mm);	//获取激光数据
-
-	ssd1306_SetCursor(10, 50);									//锁定打印位置
-	sprintf(str_buff, "Laser: %.2f", laser_distance_mm);	//组合打印内容,这里是把数字变成字符
-	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
-
-	/* 启动 I2C 中断刷新；若上一帧尚未完成，本次调用会直接返回。 */
-	(void)ssd1306_UpdateScreen_IT();
-}
 
 
 //##################################################################################################
@@ -568,7 +506,389 @@ void User_Task_Control(void){
 
 
 
+//##################################################################################################
+//********关于速度环+位置环控制模块任务*******************************************************
+//##################################################################################################
+/*
+ * 方案 2 对外可观察状态。
+ * 两个 PID 各自只由对应的定时任务修改；32 位 float 在 Cortex-M3 上可原子读写。
+ */
+volatile uint8_t ball_control_enabled = BALL_CONTROL_ENABLE_DEFAULT;
+volatile uint8_t ball_control_laser_valid = 0U;
+volatile float ball_control_target_position_mm = BALL_CONTROL_TARGET_POSITION_MM;
+volatile float ball_control_position_mm = 0.0f;
+volatile float ball_control_speed_mm_s = 0.0f;
+volatile float ball_control_target_speed_mm_s = 0.0f;
+volatile float ball_control_motor_pulse = (float)BALL_MOTOR_LEVEL_PULSE;
+
+/* 位置外环输出目标速度；速度内环输出相对水平位置的电机脉冲。 */
+volatile PID_t ball_position_pid = {
+	.Kp = BALL_POSITION_KP,
+	.Ki = BALL_POSITION_KI,
+	.Kd = BALL_POSITION_KD,
+	.integral_max = BALL_POSITION_INTEGRAL_LIMIT_MM_SEC,
+	.output_max = BALL_POSITION_MAX_TARGET_SPEED_MM_S
+};
+
+volatile PID_t ball_speed_pid = {
+	.Kp = BALL_SPEED_KP,
+	.Ki = BALL_SPEED_KI,
+	.Kd = BALL_SPEED_KD,
+	.integral_max = BALL_SPEED_INTEGRAL_LIMIT_MM,
+	.output_max = BALL_MOTOR_MAX_CONTROL_PULSE
+};
+
+/* 激光约 10 Hz，而速度环更快。只有位置确实变化时才进行一次差分。 */
+static uint8_t ball_speed_estimator_initialized = 0U;
+static float ball_speed_reference_position_mm = 0.0f;
+static uint32_t ball_speed_reference_tick_ms = 0U;
+static uint32_t ball_speed_last_motion_tick_ms = 0U;
+
+/* 电机命令状态用于限速和抑制重复 DMA 发送。 */
+static int32_t ball_motor_last_sent_pulse = BALL_MOTOR_LEVEL_PULSE;
+static uint32_t ball_motor_last_send_tick_ms = 0U;
+static uint8_t ball_motor_command_sent = 0U;
+
+static float Ball_Control_Clamp(float value, float minimum, float maximum)
+{
+	if (value < minimum)
+		return minimum;
+	if (value > maximum)
+		return maximum;
+	return value;
+}
+
+static float Ball_Control_Approach(float current, float target, float maximum_step)
+{
+	if (target > current + maximum_step)
+		return current + maximum_step;
+	if (target < current - maximum_step)
+		return current - maximum_step;
+	return target;
+}
+
+static int32_t Ball_Control_Round_To_Int32(float value)
+{
+	return (value >= 0.0f) ? (int32_t)(value + 0.5f) : (int32_t)(value - 0.5f);
+}
+
+/** 清除 PID 历史，防止停用或进入死区后残留积分继续驱动电机。 */
+static void Ball_Control_Reset_PID(PID_t *pid)
+{
+	pid->error = 0.0f;
+	pid->last_error = 0.0f;
+	pid->integral = 0.0f;
+	pid->differential = 0.0f;
+	pid->output = 0.0f;
+}
+
+/**
+ * @brief 根据激光位置变化估算小球速度，并对差分结果进行一阶低通。
+ * @note  重复取得同一后台缓存值时不会再次差分，避免把 10 Hz 数据误当成 100 Hz 数据。
+ */
+static float Ball_Control_Update_Speed_Estimate(float position_mm, uint32_t now_ms)
+{
+	float position_delta_mm;
+	uint32_t elapsed_ms;
+
+	if (!ball_speed_estimator_initialized) {
+		ball_speed_reference_position_mm = position_mm;
+		ball_speed_reference_tick_ms = now_ms;
+		ball_speed_last_motion_tick_ms = now_ms;
+		ball_speed_estimator_initialized = 1U;
+		ball_control_speed_mm_s = 0.0f;
+		return 0.0f;
+	}
+
+	position_delta_mm = position_mm - ball_speed_reference_position_mm;
+	if (fabsf(position_delta_mm) >= BALL_CONTROL_NEW_SAMPLE_EPSILON_MM) {
+		elapsed_ms = now_ms - ball_speed_reference_tick_ms;
+		if (elapsed_ms > 0U) {
+			const float dt = (float)elapsed_ms * 0.001f;
+			const float rc = 1.0f / (6.2831853f * BALL_CONTROL_SPEED_FILTER_HZ);
+			const float alpha = dt / (rc + dt);
+			float raw_speed_mm_s = position_delta_mm / dt;
+
+			raw_speed_mm_s = Ball_Control_Clamp(raw_speed_mm_s,
+				-BALL_CONTROL_SPEED_ESTIMATE_LIMIT_MM_S,
+				 BALL_CONTROL_SPEED_ESTIMATE_LIMIT_MM_S);
+			ball_control_speed_mm_s +=
+				alpha * (raw_speed_mm_s - ball_control_speed_mm_s);
+		}
+
+		ball_speed_reference_position_mm = position_mm;
+		ball_speed_reference_tick_ms = now_ms;
+		ball_speed_last_motion_tick_ms = now_ms;
+	}
+	else if ((now_ms - ball_speed_last_motion_tick_ms) >=
+		BALL_CONTROL_SPEED_ZERO_TIMEOUT_MS) {
+		ball_control_speed_mm_s = 0.0f;
+	}
+
+	return ball_control_speed_mm_s;
+}
+
+/**
+ * @brief UART1 空闲时发送一条绝对位置命令。
+ * @note  底层命令帧使用静态 DMA 缓冲区，因此 UART 忙时绝不能改写下一帧。
+ */
+static void Ball_Control_Send_Motor_Command(int32_t command_pulse, uint32_t now_ms)
+{
+	int32_t command_delta;
+	uint32_t saved_primask;
+
+	command_delta = command_pulse - ball_motor_last_sent_pulse;
+	if (command_delta < 0)
+		command_delta = -command_delta;
+
+	if (ball_motor_command_sent &&
+		(command_delta < BALL_MOTOR_SEND_HYSTERESIS_PULSE))
+		return;
+	if (ball_motor_command_sent &&
+		((now_ms - ball_motor_last_send_tick_ms) < BALL_MOTOR_MIN_SEND_INTERVAL_MS))
+		return;
+
+	/* 检查和启动 DMA 必须连续完成，避免更高优先级中断抢占 UART1。 */
+	saved_primask = __get_PRIMASK();
+	__disable_irq();
+	if (huart1.gState == HAL_UART_STATE_READY) {
+		BSP_Emm_V5_Pos_Control(command_pulse);
+		ball_motor_last_sent_pulse = command_pulse;
+		ball_motor_last_send_tick_ms = now_ms;
+		ball_motor_command_sent = 1U;
+	}
+	__DMB();
+	if (saved_primask == 0U)
+		__enable_irq();
+}
+
+/** 激光无效或控制被关闭时，清除内环状态并让管道回到水平位置。 */
+static void Ball_Control_Enter_Safe_State(uint32_t now_ms)
+{
+	Ball_Control_Reset_PID(&ball_speed_pid);
+	ball_speed_estimator_initialized = 0U;
+	ball_control_speed_mm_s = 0.0f;
+	ball_control_target_speed_mm_s = 0.0f;
+	ball_control_motor_pulse = (float)BALL_MOTOR_LEVEL_PULSE;
+	Ball_Control_Send_Motor_Command(BALL_MOTOR_LEVEL_PULSE, now_ms);
+}
+
+
+volatile float next_motor_pulse;
+/**
+	* @brief	小球速度内环任务：目标/实际速度 -> 电机绝对位置脉冲。
+	* @note		在 BALL_CONTROL_SPEED_LOOP_HZ 对应的固定频率定时中断中调用。
+	* @param	无
+	* @retval	无
+	*/
+void User_Task_Speed_Control(void)
+{
+	const float dt = 1.0f / BALL_CONTROL_SPEED_LOOP_HZ;
+	const float maximum_motor_step = BALL_MOTOR_PULSE_SLEW_PER_SECOND * dt;
+	const float minimum_absolute_pulse =
+		(float)(BALL_MOTOR_LEVEL_PULSE + BALL_MOTOR_MIN_RELATIVE_PULSE);
+	const float maximum_absolute_pulse =
+		(float)(BALL_MOTOR_LEVEL_PULSE + BALL_MOTOR_MAX_RELATIVE_PULSE);
+	float measured_position_mm;
+	float measured_speed_mm_s;
+	float target_speed_mm_s;
+	float relative_motor_pulse;
+	float target_motor_pulse;
+
+	uint32_t now_ms;
+	uint32_t saved_primask;
+	uint8_t laser_valid;
+
+	now_ms = HAL_GetTick();
+
+	/* 同时发布位置和有效标志，保证外环不会读到一新一旧的组合。 */
+	saved_primask = __get_PRIMASK();
+	__disable_irq();
+	User_Task_Laser_UART_Get(&measured_position_mm);
+	laser_valid = ball_control_laser_valid;
+	if (laser_valid)
+		ball_control_position_mm = measured_position_mm;
+	__DMB();
+	if (saved_primask == 0U)
+		__enable_irq();
+
+	if ((!ball_control_enabled) || (!laser_valid)) {
+		Ball_Control_Enter_Safe_State(now_ms);
+		return;
+	}
+
+	measured_speed_mm_s =
+		Ball_Control_Update_Speed_Estimate(measured_position_mm, now_ms);
+	target_speed_mm_s = ball_control_target_speed_mm_s;
+
+	/* 球已接近静止且外环不再要求移动时，主动清空积分并保持水平。 */
+	if ((fabsf(target_speed_mm_s) <= BALL_SPEED_DEADBAND_MM_S) &&
+		(fabsf(measured_speed_mm_s) <= BALL_SPEED_DEADBAND_MM_S)) {
+		Ball_Control_Reset_PID(&ball_speed_pid);
+		relative_motor_pulse = 0.0f;
+	}
+	else {
+		relative_motor_pulse = PID_Compute(&ball_speed_pid,
+			target_speed_mm_s,
+			measured_speed_mm_s,
+			dt);
+	}
+
+	relative_motor_pulse *= BALL_CONTROL_POLARITY;
+	relative_motor_pulse = Ball_Control_Clamp(relative_motor_pulse,
+		(float)BALL_MOTOR_MIN_RELATIVE_PULSE,
+		(float)BALL_MOTOR_MAX_RELATIVE_PULSE);
+	target_motor_pulse = (float)BALL_MOTOR_LEVEL_PULSE + relative_motor_pulse;
+	next_motor_pulse = Ball_Control_Approach(ball_control_motor_pulse,
+		target_motor_pulse,
+		maximum_motor_step);
+	next_motor_pulse = Ball_Control_Clamp(next_motor_pulse,
+		minimum_absolute_pulse,
+		maximum_absolute_pulse);
+
+	ball_control_motor_pulse = next_motor_pulse;
+	Ball_Control_Send_Motor_Command(Ball_Control_Round_To_Int32(next_motor_pulse),
+		now_ms);
+}
+
+/**
+	* @brief	小球位置外环任务：目标/实际位置 -> 小球目标速度。
+	* @note		在 BALL_CONTROL_POSITION_LOOP_HZ 对应的固定频率定时中断中调用。
+	* @param	无
+	* @retval	无
+	*/
+void User_Task_Position_Control(void)
+{
+	const float dt = 1.0f / BALL_CONTROL_POSITION_LOOP_HZ;
+	const float maximum_target_speed_step = BALL_TARGET_SPEED_SLEW_MM_S2 * dt;
+	float measured_position_mm;
+	float target_position_mm;
+	float requested_speed_mm_s;
+	uint32_t saved_primask;
+	uint8_t control_enabled;
+	uint8_t laser_valid;
+
+	/* 位置和值的有效标志由速度任务一起发布，这里用短临界区取得一致快照。 */
+	saved_primask = __get_PRIMASK();
+	__disable_irq();
+	control_enabled = ball_control_enabled;
+	laser_valid = ball_control_laser_valid;
+	measured_position_mm = ball_control_position_mm;
+	target_position_mm = ball_control_target_position_mm;
+	__DMB();
+	if (saved_primask == 0U)
+		__enable_irq();
+
+	if ((!control_enabled) || (!laser_valid)) {
+		Ball_Control_Reset_PID(&ball_position_pid);
+		ball_control_target_speed_mm_s = 0.0f;
+		return;
+	}
+
+	if (fabsf(target_position_mm - measured_position_mm) <=
+		BALL_POSITION_DEADBAND_MM) {
+		Ball_Control_Reset_PID(&ball_position_pid);
+		requested_speed_mm_s = 0.0f;
+	}
+	else {
+		requested_speed_mm_s = PID_Compute(&ball_position_pid,
+			target_position_mm,
+			measured_position_mm,
+			dt);
+	}
+
+	ball_control_target_speed_mm_s = Ball_Control_Approach(
+		ball_control_target_speed_mm_s,
+		requested_speed_mm_s,
+		maximum_target_speed_step);
+}
 
 
 
+//##################################################################################################
+//**********************关于OLED模块任务*************************************************************
+//##################################################################################################
+
+/**
+	* @brief	OLED任务初始化函数
+	* @note		该函数用于初始化OLED相关的硬件和软件资源
+	* @param	无
+	* @retval	无
+	*/
+void User_Task_OLED_Init(void){
+//初始化 OLED 屏幕
+ssd1306_Init();
+//清空屏幕显存 (全部填充满黑色)
+ssd1306_Fill(Black);
+
+}
+
+
+/**
+	* @brief	OLED任务函数,在main函数的while循环中调用,用于更新OLED屏幕显示
+	* @note		该函数会在主循环中被调用,用于更新OLED屏幕显示,目前函数只是用来触发更新,和显示
+	* @param	无
+	* @retval	无
+	*/
+void User_Task_OLED_Update(void){
+	//**************屏幕测试的屏幕显示***********
+	// static int my_count = 0;       // 自加的数字
+	// static char str_buff[32];      // 字符缓存区（准备32字节足够装一句话了）
+	// my_count++;					   // 自加
+	// sprintf(str_buff, "Count: %d", my_count);			//组合打印内容,这里是把数字变成字符
+	// ssd1306_Fill(Black);									//清空屏幕缓冲区
+	// ssd1306_SetCursor(10, 20);							//锁定打印位置
+	// ssd1306_WriteString(str_buff, Font_11x18, White);	//确定打印字符,大小,颜色
+	// ssd1306_UpdateScreen_IT();							//启动 I2C 中断刷新，函数立即返回，不阻塞主循环
+	
+	
+	//**************关于方案1的屏幕显示***********
+	//现在想要显示参数,分别是CONTROL_MOTOR_SPEED_RPM和CONTROL_MOTOR_ACCEL_PARAM两个宏定义的值
+//	static char str_buff[32];      // 字符缓存区（准备32字节足够装一句话了）
+//	ssd1306_Fill(Black);			//清空屏幕缓冲区
+
+//	ssd1306_SetCursor(10, 5);									//锁定打印位置
+//	sprintf(str_buff, "Count: %d", UPdate_Speed_RPM);	//组合打印内容,这里是把数字变成字符
+//	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
+
+//	ssd1306_SetCursor(10, 20);									//锁定打印位置
+//	sprintf(str_buff, "Count: %d", UPdate_Accel_Param);	//组合打印内容,这里是把数字变成字符
+//	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
+
+//	//打印激光数据
+//	static float laser_distance_mm = 0.0f;
+//	User_Task_Laser_UART_Get(&laser_distance_mm);	//获取激光数据
+
+//	ssd1306_SetCursor(10, 35);									//锁定打印位置
+//	sprintf(str_buff, "Laser: %.2f", laser_distance_mm);	//组合打印内容,这里是把数字变成字符
+//	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
+
+	//**************关于方案2的屏幕显示***********
+	//现在想要显示参数,分别是内环PID参数,外环PID参数
+	static char str_buff[32];      // 字符缓存区（准备32字节足够装一句话了）
+	ssd1306_Fill(Black);					//清空屏幕缓冲区
+
+	ssd1306_SetCursor(5, 5);									//锁定打印位置
+	sprintf(str_buff, "Kp:%.2f H %.2f",ball_speed_pid.Kp,ball_position_pid.Kp);	//组合打印内容,这里是把数字变成字符
+	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
+
+	ssd1306_SetCursor(5, 20);									//锁定打印位置
+	sprintf(str_buff, "Ki:%.2f H %.2f",ball_speed_pid.Ki,ball_position_pid.Ki);	//组合打印内容,这里是把数字变成字符
+	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
+	
+	ssd1306_SetCursor(5, 35);									//锁定打印位置
+	sprintf(str_buff, "Kd:%.2f H %.2f",ball_speed_pid.Kd,ball_position_pid.Kd);	//组合打印内容,这里是把数字变成字符
+	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
+
+	//打印激光数据
+	static float laser_distance_mm = 0.0f;
+	User_Task_Laser_UART_Get(&laser_distance_mm);	//获取激光数据
+
+	ssd1306_SetCursor(5, 50);									//锁定打印位置
+	sprintf(str_buff, "L:%.2f H %.0f", laser_distance_mm,next_motor_pulse);	//组合打印内容,这里是把数字变成字符
+	ssd1306_WriteString(str_buff, Font_7x10, White);			//确定打印字符,大小,颜色
+
+	/* 启动 I2C 中断刷新；若上一帧尚未完成，本次调用会直接返回。 */
+	(void)ssd1306_UpdateScreen_IT();
+}
 
