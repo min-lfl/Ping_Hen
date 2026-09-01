@@ -894,15 +894,26 @@ void User_Task_UART_Update(void){
 //	printf_dma("当前y轴姿态角%f 度 \r\n", mpu6050_date.KalmanAngleY);
 //	printf_dma(" \r\n");
 	
-	//vofa+波形图测试代码
-	static uint8_t status_print=0;
-	if(status_print==0){
-		printf_dma("d: %f, %f\n", 100.0f,200.0f);
-		status_print=1;
-	}else{
-		printf_dma("d: %f, %f\n", -100.0f,-200.0f);
-		status_print=0;
-	}
 	
+	//vofa+波形图测试代码
+//	static uint8_t status_print=0;
+//	if(status_print==0){
+//		printf_dma("d: %f, %f\n", 100.0f,200.0f);
+//		status_print=1;
+//	}else{
+//		printf_dma("d: %f, %f\n", -100.0f,-200.0f);
+//		status_print=0;
+//	}
+	
+	//关于vofa+的在线调参
+	//打印激光数据(位置数据)
+	static float laser_distance_mm = 0.0f;
+	User_Task_Laser_UART_Get(&laser_distance_mm);	//获取激光数据
+	
+	//打印
+	float Tem_next_motor_pulse= next_motor_pulse;
+	//1:位置数据. 2:当前电机输出
+	printf_dma("POS: %f,%f\n", laser_distance_mm,Tem_next_motor_pulse);
+
 }
 

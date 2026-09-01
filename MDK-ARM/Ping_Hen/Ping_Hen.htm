@@ -3,7 +3,7 @@
 <title>Static Call Graph - [Ping_Hen\Ping_Hen.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image Ping_Hen\Ping_Hen.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Sun Aug 30 23:22:41 2026
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060960: Last Updated: Tue Sep 01 12:56:58 2026
 <BR><P>
 <H3>Maximum Stack Usage =        212 bytes + Unknown(Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -387,7 +387,8 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[ff]"></a>__aeabi_f2d</STRONG> (Thumb, 38 bytes, Stack size 0 bytes, f2d.o(.text))
-<BR><BR>[Called By]<UL><LI><a href="#[fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;User_Task_OLED_Update
+<BR><BR>[Called By]<UL><LI><a href="#[104]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;User_Task_UART_Update
+<LI><a href="#[fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;User_Task_OLED_Update
 </UL>
 
 <P><STRONG><a name="[10b]"></a>__aeabi_cdrcmple</STRONG> (Thumb, 48 bytes, Stack size 0 bytes, cdrcmple.o(.text), UNUSED)
@@ -1361,7 +1362,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[49]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_fsub
 <LI><a href="#[f9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Laser_UART_GetDistance
 </UL>
-<BR>[Called By]<UL><LI><a href="#[b0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;User_Task_Speed_Control
+<BR>[Called By]<UL><LI><a href="#[104]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;User_Task_UART_Update
+<LI><a href="#[b0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;User_Task_Speed_Control
 <LI><a href="#[fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;User_Task_OLED_Update
 </UL>
 
@@ -1446,10 +1448,12 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[ac]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_TIM_PeriodElapsedCallback
 </UL>
 
-<P><STRONG><a name="[104]"></a>User_Task_UART_Update</STRONG> (Thumb, 60 bytes, Stack size 16 bytes, user_task.o(i.User_Task_UART_Update))
-<BR><BR>[Stack]<UL><LI>Max Depth = 116<LI>Call Chain = User_Task_UART_Update &rArr; printf_dma &rArr; HAL_UART_Transmit_DMA &rArr; HAL_DMA_Start_IT &rArr; DMA_SetConfig
+<P><STRONG><a name="[104]"></a>User_Task_UART_Update</STRONG> (Thumb, 52 bytes, Stack size 32 bytes, user_task.o(i.User_Task_UART_Update))
+<BR><BR>[Stack]<UL><LI>Max Depth = 132<LI>Call Chain = User_Task_UART_Update &rArr; printf_dma &rArr; HAL_UART_Transmit_DMA &rArr; HAL_DMA_Start_IT &rArr; DMA_SetConfig
 </UL>
 <BR>[Calls]<UL><LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;printf_dma
+<LI><a href="#[ff]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_f2d
+<LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;User_Task_Laser_UART_Get
 </UL>
 <BR>[Called By]<UL><LI><a href="#[35]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
