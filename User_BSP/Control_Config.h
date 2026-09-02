@@ -10,8 +10,8 @@
 #define CONTROL_AUTOMATIC_ENABLE          (1)				//自动控制使能位
 
 /* 电机驱动器限制。ACC=0表示直接启动，此处不应使用 */
-#define CONTROL_MOTOR_SPEED_RPM           (500)			//电机速度
-#define CONTROL_MOTOR_ACCEL_PARAM         (255)			//电机加速度
+#define CONTROL_MOTOR_SPEED_RPM           (400)			//电机速度
+#define CONTROL_MOTOR_ACCEL_PARAM         (180)			//电机加速度
 #define CONTROL_MANUAL_TEST_PULSE         (250)			//手动控制极点(调参不需要改)
 
 /* 加速度计校准。在重新校准时:修正后的Ay应为0g. */
@@ -75,16 +75,16 @@
 /* 位置外环 PID：输出为小球目标速度(mm/s)，建议先只调 Kp。 */
 #define BALL_POSITION_KP                         (0.7f)
 #define BALL_POSITION_KI                         (0.8f)
-#define BALL_POSITION_KD                         (0.00f)
-#define BALL_POSITION_INTEGRAL_LIMIT_MM_SEC      (100.0f)  // 位置误差积分限幅，单位 mm*s。
+#define BALL_POSITION_KD                         (0.0f)
+#define BALL_POSITION_INTEGRAL_LIMIT_MM_SEC      (150.0f)  // 位置误差积分限幅，单位 mm*s。
 #define BALL_POSITION_MAX_TARGET_SPEED_MM_S      (280.0f)
 #define BALL_POSITION_DEADBAND_MM                 (1.5f)
 #define BALL_TARGET_SPEED_SLEW_MM_S2              (800.0f)  // 外环目标速度最大变化率。
 
 /* 速度内环 PID：输出为相对水平位置的电机脉冲数。 */
-#define BALL_SPEED_KP                            (1.8f)
-#define BALL_SPEED_KI                            (0.0f)
-#define BALL_SPEED_KD                            (0.9f)
+#define BALL_SPEED_KP                            (1.65f)
+#define BALL_SPEED_KI                            (0.1f)
+#define BALL_SPEED_KD                            (0.3f)
 #define BALL_SPEED_INTEGRAL_LIMIT_MM             (300.0f)
 #define BALL_SPEED_DEADBAND_MM_S                  (3.0f)
 

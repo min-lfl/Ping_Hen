@@ -18,8 +18,12 @@ float PID_Compute(PID_t *pid, float target, float measure, float dt){
 //		pid->error=0.0f;
 //	}
 
+	//误差过零时清零积分，防止积分滞后导致过冲
+	if(pid->error * pid->last_error < 0.0f) {
+		pid->integral = 0.0f;
+	}
+	
 	//计算积分(误差累加)
-	//小于2时才让积分介入
 	pid->integral+=pid->error*dt;
 	
 	
