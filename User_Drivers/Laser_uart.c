@@ -188,11 +188,11 @@ bool Laser_UART_GetDistance(float *distance_mm)
  */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
 {
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
-	
     if (huart != s_laser_uart) {
         return;
     }
+		
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_8);
 
 		
 		

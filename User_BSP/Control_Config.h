@@ -1,48 +1,100 @@
+/**
+ * @file    Control_Config.h
+ * @brief   球杆系统（Ball-on-Beam）全部控制参数集中定义。
+ *
+ * 设计目标：
+ *   所有可调参数集中在一个头文件中，修改后只需重新编译，无需在多个 .c 文件里翻找。
+ *   参数按功能模块分组，每组有独立注释说明其作用。
+ *
+ * 项目包含两套控制方案：
+ *   方案 1（已弃用）：加速度补偿控制，直接用加速度计估算杆的倾角，通过 S 曲线规划驱动电机。
+ *   方案 2（当前使用）：串级 PID 控制，位置外环 + 速度内环，通过激光测距反馈小球位置。
+ *
+ * 串级控制结构（方案 2）：
+ *   位置外环 (10Hz)  →  目标位置 mm  →  PID  →  目标速度 mm/s
+ *   速度内环 (100Hz) →  目标速度 mm/s →  PID  →  电机脉冲数
+ *   ─────────────────────────────────────────────────────────
+ *   电机脉冲数  →  杆倾斜角度  →  重力分力  →  小球加速度
+ *   激光测距    →  小球实际位置 & 速度    →  反馈回 PID
+ */
+
 #ifndef __CONTROL_CONFIG_H__
 #define __CONTROL_CONFIG_H__
 
 //####头文件引用区#####
 #include "main.h"
 
-/* 采样率必须与TIM1和TIM2匹配。*/
-#define CONTROL_IMU_SAMPLE_HZ             300.0f		//Time1的频率,陀螺仪读取频率
-#define CONTROL_LOOP_HZ                   100.0f		//Time2的频率
-#define CONTROL_AUTOMATIC_ENABLE          (1)				//自动控制使能位
+/* ================================================================
+ * 系统采样率
+ * 必须与 CubeMX 中 TIM1 和 TIM2 的配置完全一致，否则控制周期会错。
+ * ================================================================ */
+#define CONTROL_IMU_SAMPLE_HZ             300.0f     // TIM1 的频率，陀螺仪读取频率（方案 1 用）
+#define CONTROL_LOOP_HZ                   100.0f     // TIM2 的频率，方案 1 控制循环频率
+#define CONTROL_AUTOMATIC_ENABLE          (1)        // 上电后默认开启自动控制
 
-/* 电机驱动器限制。ACC=0表示直接启动，此处不应使用 */
-#define CONTROL_MOTOR_SPEED_RPM           (400)			//电机速度
-#define CONTROL_MOTOR_ACCEL_PARAM         (180)			//电机加速度
-#define CONTROL_MANUAL_TEST_PULSE         (250)			//手动控制极点(调参不需要改)
+/* ================================================================
+ * 电机驱动器参数（方案 1 和方案 2 共用）
+ * 这些参数通过 Emm_V5_Set_QPos_Params 发送给张大头驱动器。
+ * ACC=0 表示直接启动（无加减速），会让电机剧烈抖动，不应使用。
+ * ================================================================ */
+#define CONTROL_MOTOR_SPEED_RPM           (400)      // 电机最大转速，单位 RPM。太高会抖，太低响应慢。
+#define CONTROL_MOTOR_ACCEL_PARAM         (180)      // 电机加速度参数。越大启停越急（卡顿），越小越平缓（但太低会振荡）。
+#define CONTROL_MANUAL_TEST_PULSE         (250)      // 按键手动控制时发送的脉冲偏移量，调参不需要改。
 
-/* 加速度计校准。在重新校准时:修正后的Ay应为0g. */
-#define CONTROL_ACCEL_Y_BIAS_G            (-0.001532f)	//y轴恒定偏移加减校准
-#define CONTROL_ACCEL_Z_BIAS_G            (0.0f)		//z轴恒定偏移加减校准
-#define CONTROL_ACCEL_TO_ROD_SIGN         (-1.0f)		//自动控制方向
-#define CONTROL_ACCEL_INPUT_LIMIT_G       (0.30f)		//最大加速度输入限制
+/* ================================================================
+ * 加速度计校准（方案 1 用）
+ * 目的：消除 MPU6050 的零偏，使杆水平时 Ay 读数为 0g。
+ * 方法：杆水平放置，记录 Ay 读数，填入 CONTROL_ACCEL_Y_BIAS_G 取反。
+ * ================================================================ */
+#define CONTROL_ACCEL_Y_BIAS_G            (-0.001532f) // Y 轴零偏校准值，单位 g
+#define CONTROL_ACCEL_Z_BIAS_G            (0.0f)       // Z 轴零偏校准值，单位 g
+#define CONTROL_ACCEL_TO_ROD_SIGN         (-1.0f)      // 加速度到杆倾角的极性：+1 或 -1
+#define CONTROL_ACCEL_INPUT_LIMIT_G       (0.30f)      // 加速度输入限幅，防止振动噪声被误判为倾角
 
 
 //#########加速度补偿(方案1已弃用)专属参数######
 
-/* 低通滤波频率。提高以减少延迟，降低以减少抖动。 */
-#define CONTROL_ACCEL_LPF_POLE_HZ         (26.0f)		//低通滤波频率
+/*
+ * 方案 1 原理简述：
+ *   1. 读取 MPU6050 的 Ay 和 Az 加速度
+ *   2. 用 atan2(Ay, Az) 计算杆的倾角
+ *   3. 通过校准表（linkage_cal_table）将倾角映射为电机脉冲数
+ *   4. 用软件 S 曲线规划器平滑过渡到目标位置
+ *   5. 发送绝对位置命令给电机
+ *
+ * 弃用原因：加速度计无法区分"杆倾斜"和"小球运动产生的加速度"，
+ *           导致控制发散。在杆水平时小球滚动会产生 Ay 分量，被误判为杆倾斜。
+ */
 
-/* 绝对电机零点和安全联动行程，以电机脉冲为单位。 */
-#define CONTROL_LEVEL_PULSE               (0)				//电机零点
-#define CONTROL_MIN_RELATIVE_PULSE        (-280)		//下限位
-#define CONTROL_MAX_RELATIVE_PULSE        (280)			//上限位
+/* 低通滤波：滤除加速度计的高频振动噪声。
+ * 提高截止频率 → 响应更快但更抖；降低 → 更平滑但延迟更大。 */
+#define CONTROL_ACCEL_LPF_POLE_HZ         (26.0f)     // 二阶低通滤波截止频率，单位 Hz
 
-/* 软件S曲线限制，以电机脉冲单位表示。 */
-#define CONTROL_PROFILE_NATURAL_HZ        (3.5f)
-#define CONTROL_PROFILE_DAMPING           (1.0f)
-#define CONTROL_MAX_PULSE_SPEED           (2500.0f)   /* pulse/s */
-#define CONTROL_MAX_PULSE_ACCEL           (30000.0f)  /* pulse/s^2 */
-#define CONTROL_MAX_PULSE_JERK            (1000000.0f) /* pulse/s^3 */
+/* 电机安全行程限制：电机绝对位置不能超出这个范围，防止撞机械限位。 */
+#define CONTROL_LEVEL_PULSE               (0)         // 杆水平时电机的绝对位置（零点）
+#define CONTROL_MIN_RELATIVE_PULSE        (-280)      // 相对零点的最小安全位置（下机械限位）
+#define CONTROL_MAX_RELATIVE_PULSE        (280)       // 相对零点的最大安全位置（上机械限位）
 
-/* 不要重新发送微小的位置变化。电机保持上次的目标位置。 */
-#define CONTROL_SEND_HYSTERESIS_PULSE     (3)
-#define CONTROL_SETTLE_POSITION_PULSE     (0.35f)
-#define CONTROL_SETTLE_SPEED_PULSE_S      (5.0f)
-#define CONTROL_SETTLE_ACCEL_PULSE_S2     (100.0f)
+/*
+ * 软件 S 曲线规划器参数（方案 1 的运动平滑）
+ * 目标：让电机从当前位置平滑过渡到目标位置，而不是瞬间跳变。
+ * 实现：用一个二阶质量-弹簧-阻尼模型模拟物理运动，限制位置、速度、加速度、加加速度。
+ *
+ * 调节指南：
+ *   CONTROL_PROFILE_NATURAL_HZ：提高 → 响应更快；降低 → 更平滑。
+ *   CONTROL_PROFILE_DAMPING：1.0 = 临界阻尼（无超调），<1.0 = 欠阻尼（有超调）。
+ */
+#define CONTROL_PROFILE_NATURAL_HZ        (3.5f)      // S 曲线自然频率，决定响应速度
+#define CONTROL_PROFILE_DAMPING           (1.0f)      // S 曲线阻尼比，1.0 = 临界阻尼无超调
+#define CONTROL_MAX_PULSE_SPEED           (2500.0f)   // 最大规划速度，单位 pulse/s
+#define CONTROL_MAX_PULSE_ACCEL           (30000.0f)  // 最大规划加速度，单位 pulse/s^2
+#define CONTROL_MAX_PULSE_JERK            (1000000.0f)// 最大规划加加速度，单位 pulse/s^3
+
+/* 命令发送优化：位置变化太小就不重复发送，减少 UART 总线占用。 */
+#define CONTROL_SEND_HYSTERESIS_PULSE     (3)         // 位置变化小于此值不重复发送
+#define CONTROL_SETTLE_POSITION_PULSE     (0.35f)     // 位置稳定阈值
+#define CONTROL_SETTLE_SPEED_PULSE_S      (5.0f)      // 速度稳定阈值
+#define CONTROL_SETTLE_ACCEL_PULSE_S2     (100.0f)    // 加速度稳定阈值
 
 
 //################################################
@@ -50,53 +102,179 @@
 //################################################
 
 /*
- * 串级控制结构：
- *   位置外环：小球位置(mm) -> 小球目标速度(mm/s)
- *   速度内环：小球速度(mm/s) -> 电机绝对位置脉冲
- * 两个任务的实际定时器频率必须与下面的频率完全一致。
+ * 方案 2 原理简述（当前使用的方案）：
+ *
+ *   串级控制 = 位置外环 + 速度内环，两个 PID 分别运行在不同频率的定时器中断中。
+ *
+ *   ┌─────────────────────────────────────────────────────────┐
+ *   │ 位置外环 (TIM3, 10Hz)                                    │
+ *   │   输入：小球目标位置 mm、小球实际位置 mm（激光测距）        │
+ *   │   输出：小球目标速度 mm/s                                 │
+ *   │   作用：决定小球应该往哪个方向跑、跑多快才能到达目标位置    │
+ *   └──────────────┬──────────────────────────────────────────┘
+ *                  │ ball_control_target_speed_mm_s
+ *   ┌──────────────▼──────────────────────────────────────────┐
+ *   │ 速度内环 (TIM2, 100Hz)                                   │
+ *   │   输入：目标速度 mm/s、实际速度 mm/s（位置差分+低通滤波）   │
+ *   │   输出：电机绝对位置脉冲数                                 │
+ *   │   作用：让小球的实际速度跟踪目标速度，抑制振荡              │
+ *   └──────────────┬──────────────────────────────────────────┘
+ *                  │ 电机脉冲
+ *   ┌──────────────▼──────────────────────────────────────────┐
+ *   │ 物理系统                                                 │
+ *   │   电机脉冲 → 杆倾斜角度 → 重力沿杆分量 → 小球加速度        │
+ *   │   激光测距 → 小球实际位置（反馈回外环和内环）               │
+ *   └─────────────────────────────────────────────────────────┘
+ *
+ * 为什么内外环频率不同？
+ *   外环 10Hz：激光传感器输出频率约 10Hz，位置信息每 100ms 才更新一次。
+ *              外环跑太快没有意义，只会对同一份旧数据重复计算。
+ *   内环 100Hz：速度估算可以在 100Hz 下运行（即使位置数据是 10Hz 的，
+ *               速度估算器也能在 100Hz 下输出平滑的滤波值），
+ *               更高的频率让电机响应更及时。
  */
-#define BALL_CONTROL_SPEED_LOOP_HZ              (100.0f)  // 建议速度内环 100 Hz。
-#define BALL_CONTROL_POSITION_LOOP_HZ           (10.0f)   // 建议位置外环 10 Hz。
+#define BALL_CONTROL_SPEED_LOOP_HZ              (100.0f)  // 速度内环频率，必须与 TIM2 配置一致。
+#define BALL_CONTROL_POSITION_LOOP_HZ           (10.0f)   // 位置外环频率，必须与 TIM3 配置一致。
 
-/* 激光测距与速度估算参数。 */
-#define BALL_CONTROL_LASER_ORIGIN_MM             (190.0f)  // 传感器原始读数为该值时，小球位于人为规定的 0 点。
-#define BALL_CONTROL_TARGET_POSITION_MM          (0.0f)    // 小球目标位置，单位 mm。
-#define BALL_CONTROL_NEW_SAMPLE_EPSILON_MM       (0.05f)   // 位置变化超过该值才认为激光产生了一个新样本。
-#define BALL_CONTROL_SPEED_FILTER_HZ             (3.0f)    // 差分速度的一阶低通截止频率。
-#define BALL_CONTROL_SPEED_ESTIMATE_LIMIT_MM_S   (1000.0f) // 差分速度尖峰限幅，单位 mm/s。
-#define BALL_CONTROL_SPEED_ZERO_TIMEOUT_MS       (250U)    // 位置长期不变时将估算速度归零。
+/* ================================================================
+ * 激光测距与速度估算参数
+ * ================================================================ */
 
 /*
- * 控制器极性只能填写 +1.0f 或 -1.0f。
- * 把球放在 0 点右侧；若控制后球继续向右运动，就把该宏正负号反过来。
+ * 激光原点偏移：
+ *   激光传感器读数 = 190mm 时，小球位于我们定义的"零点"（管道中间）。
+ *   所以：小球相对位置 = 激光原始读数 - 190。
+ *   正值 = 在零点右侧，负值 = 在零点左侧。
+ */
+#define BALL_CONTROL_LASER_ORIGIN_MM             (190.0f)  // 传感器原始读数为该值时对应零点。
+#define BALL_CONTROL_TARGET_POSITION_MM          (0.0f)    // 小球目标位置，0 就是零点。可运行时修改。
+
+/*
+ * 速度估算参数：
+ *   没有专门的速度传感器，速度 = 位置变化量 / 时间间隔。
+ *   但激光数据约 10Hz，而速度环是 100Hz。如果每次都差分，大部分时候
+ *   位置没变，差分结果会是 0，偶尔才跳变一次，速度数据会非常粗糙。
+ *
+ * 解决方法：
+ *   1. NEW_SAMPLE_EPSILON：只有位置变化超过 0.05mm 才算"有新数据"，
+ *      否则保持上次的速度估算值。这样避免了把 10Hz 数据按 100Hz 重复差分。
+ *   2. SPEED_FILTER_HZ：对差分结果做一阶低通滤波，平滑速度估算值。
+ *      截止频率 = 3Hz，意味着速度变化比 3Hz 快的成分会被滤掉。
+ *      提高 → 响应更快但噪声大；降低 → 更平滑但延迟大。
+ *   3. SPEED_ESTIMATE_LIMIT：差分速度的最大限幅，防止偶尔的激光跳变产生尖峰。
+ *   4. SPEED_ZERO_TIMEOUT：如果小球 250ms 内位置没变化，强制速度归零。
+ *      防止小球静止时速度估算值残留一个小数。
+ */
+#define BALL_CONTROL_NEW_SAMPLE_EPSILON_MM       (0.05f)   // 位置变化阈值：超过此值才认为有新样本。
+#define BALL_CONTROL_SPEED_FILTER_HZ             (3.0f)    // 速度低通滤波截止频率，单位 Hz。
+#define BALL_CONTROL_SPEED_ESTIMATE_LIMIT_MM_S   (1000.0f) // 速度估算尖峰限幅，单位 mm/s。
+#define BALL_CONTROL_SPEED_ZERO_TIMEOUT_MS       (250U)    // 位置不变超时，将估算速度归零，单位 ms。
+
+/* ================================================================
+ * 控制极性
+ * ================================================================ */
+
+/*
+ * 球杆系统的控制方向取决于机械安装方向。
+ * 测试方法：把球放在 0 点右侧，开启控制。
+ *           如果球继续向右跑 → 极性反了 → 改为 -1.0f。
+ *           如果球开始向左跑回零点 → 极性正确 → 保持 1.0f。
  */
 #define BALL_CONTROL_POLARITY                    (1.0f)
 
-/* 位置外环 PID：输出为小球目标速度(mm/s)，建议先只调 Kp。 */
-#define BALL_POSITION_KP                         (0.7f)
-#define BALL_POSITION_KI                         (0.8f)
-#define BALL_POSITION_KD                         (0.0f)
-#define BALL_POSITION_INTEGRAL_LIMIT_MM_SEC      (150.0f)  // 位置误差积分限幅，单位 mm*s。
-#define BALL_POSITION_MAX_TARGET_SPEED_MM_S      (280.0f)
-#define BALL_POSITION_DEADBAND_MM                 (1.5f)
-#define BALL_TARGET_SPEED_SLEW_MM_S2              (800.0f)  // 外环目标速度最大变化率。
+/* ================================================================
+ * 位置外环 PID 参数
+ * ================================================================ */
 
-/* 速度内环 PID：输出为相对水平位置的电机脉冲数。 */
-#define BALL_SPEED_KP                            (1.65f)
-#define BALL_SPEED_KI                            (0.1f)
-#define BALL_SPEED_KD                            (0.3f)
-#define BALL_SPEED_INTEGRAL_LIMIT_MM             (300.0f)
-#define BALL_SPEED_DEADBAND_MM_S                  (3.0f)
+/*
+ * 位置外环的作用：根据小球当前位置和目标位置的差距，决定小球应该以多快的速度移动。
+ *
+ * 输入：误差 = 目标位置 - 当前位置（单位 mm）
+ * 输出：小球目标速度（单位 mm/s），范围 [-MAX_TARGET_SPEED, +MAX_TARGET_SPEED]
+ *
+ * 各参数含义：
+ *   KP：比例增益。误差 × Kp = 目标速度的基础分量。
+ *       误差大 → 目标速度大（小球快跑）；误差小 → 目标速度小（小球慢走）。
+ *   KI：积分增益。误差累积 × Ki = 目标速度的修正分量。
+ *       用于消除稳态误差（比如杆不完全水平导致的小球缓慢漂移）。
+ *       注意：积分过零时会自动清零（PID_Compute 中有过零检测），防止过冲。
+ *   KD：微分增益。这里设为 0，因为位置外环不需要阻尼（阻尼由速度内环提供）。
+ *
+ * 调节指南：
+ *   - 先调 Kp，逐渐增大直到小球能快速回到零点但不过冲。
+ *   - 如果存在稳态误差（小球停在离零点几毫米的地方不动），加 Ki。
+ *   - Ki 已配有过零清零，可以大胆调大。
+ */
+#define BALL_POSITION_KP                         (0.6f)    // 位置外环比例增益
+#define BALL_POSITION_KI                         (0.7f)    // 位置外环积分增益
+#define BALL_POSITION_KD                         (0.0f)    // 位置外环微分增益（不使用）
+#define BALL_POSITION_INTEGRAL_LIMIT_MM_SEC      (150.0f)  // 积分限幅：防止积分无限累积，单位 mm*s。
+#define BALL_POSITION_MAX_TARGET_SPEED_MM_S      (280.0f)  // PID 输出限幅：小球目标速度上限，单位 mm/s。
+#define BALL_POSITION_DEADBAND_MM                 (1.5f)   // 位置死区：误差 < 1.5mm 时认为已到达目标，清空 PID。
+#define BALL_TARGET_SPEED_SLEW_MM_S2              (800.0f)  // 目标速度变化率上限：防止目标速度突变引起电机冲击。
 
-/* 电机绝对位置、安全行程和命令整形参数。 */
-#define BALL_MOTOR_LEVEL_PULSE                    (0)       // 管道水平时的电机绝对位置。
-#define BALL_MOTOR_MIN_RELATIVE_PULSE             (-280)    // 相对水平位置的最小安全行程。
-#define BALL_MOTOR_MAX_RELATIVE_PULSE             (280)     // 相对水平位置的最大安全行程。
-#define BALL_MOTOR_MAX_CONTROL_PULSE              (250.0f)  // PID 可使用的最大相对脉冲。
-#define BALL_MOTOR_PULSE_SLEW_PER_SECOND          (1200.0f) // 电机目标位置每秒最大变化脉冲数。
-#define BALL_MOTOR_SEND_HYSTERESIS_PULSE          (1)       // 命令变化不足该值时不重复发送。
-#define BALL_MOTOR_MIN_SEND_INTERVAL_MS           (5U)      // 避免 UART DMA 长期处于忙状态。
-#define BALL_CONTROL_ENABLE_DEFAULT               (1U)
+/* ================================================================
+ * 速度内环 PID 参数
+ * ================================================================ */
+
+/*
+ * 速度内环的作用：让小球的实际速度跟踪位置外环给出的目标速度。
+ *
+ * 输入：误差 = 目标速度 - 实际速度（单位 mm/s）
+ * 输出：电机相对脉冲数（单位 pulse），范围 [-MAX_CONTROL_PULSE, +MAX_CONTROL_PULSE]
+ *
+ * 各参数含义：
+ *   KP：比例增益。速度误差 × Kp = 电机脉冲的基础分量。
+ *       误差大 → 电机倾斜大；误差小 → 电机倾斜小。
+ *   KI：积分增益。消除速度的稳态误差。
+ *       注意：积分过零时也会自动清零。
+ *   KD：微分增益。对速度误差的微分 = 对速度变化的"预判"。
+ *       当小球速度正在快速变化时，D 项会提前做出反应，起到阻尼作用。
+ *
+ * 调节指南：
+ *   - 先只调 Kp，让小球能大致跟踪目标速度。
+ *   - 如果小球来回振荡，加 Kd 来增加阻尼。
+ *   - 如果速度有稳态误差，加 Ki。
+ */
+#define BALL_SPEED_KP                            (1.2f)    // 速度内环比例增益
+#define BALL_SPEED_KI                            (0.1f)    // 速度内环积分增益
+#define BALL_SPEED_KD                            (0.3f)    // 速度内环微分增益
+#define BALL_SPEED_INTEGRAL_LIMIT_MM             (300.0f)  // 积分限幅：单位 mm*s 等效。
+#define BALL_SPEED_DEADBAND_MM_S                  (3.0f)   // 速度死区：目标速度和实际速度都小于此值时，认为已静止，清空 PID。
+
+/* ================================================================
+ * 电机安全行程与命令整形
+ * ================================================================ */
+
+/*
+ * 电机安全行程：
+ *   LEVEL_PULSE = 0：杆水平时电机位置为 0。
+ *   MIN/MAX_RELATIVE_PULSE = ±280：电机最多偏离水平位置 280 个脉冲。
+ *   超出这个范围会触碰机械限位，可能损坏硬件。
+ *
+ * 命令整形参数：
+ *   MAX_CONTROL_PULSE = 250：PID 输出最多使用 ±250 脉冲。
+ *   比硬件限位 280 小 30 脉冲，留出安全余量。
+ *
+ *   PULSE_SLEW_PER_SECOND = 1200：电机目标位置每秒最多变化 1200 脉冲。
+ *   在 100Hz 下每周期最多变化 12 脉冲。这个限制有两个作用：
+ *     1. 防止电机指令突变导致机械冲击。
+ *     2. 配合驱动器加速度参数，让电机运行更平滑。
+ *
+ *   SEND_HYSTERESIS_PULSE = 1：两次命令之间位置变化小于 1 脉冲就不重复发送。
+ *   避免 DMA 缓冲区被频繁覆盖。
+ *
+ *   MIN_SEND_INTERVAL_MS = 5：两次命令之间至少间隔 5ms。
+ *   配合 HYSTERESIS，确保 UART DMA 不会一直处于忙状态。
+ */
+#define BALL_MOTOR_LEVEL_PULSE                    (0)       // 杆水平时电机的绝对位置（零点）。
+#define BALL_MOTOR_MIN_RELATIVE_PULSE             (-280)    // 相对零点的最小安全位置（下机械限位）。
+#define BALL_MOTOR_MAX_RELATIVE_PULSE             (280)     // 相对零点的最大安全位置（上机械限位）。
+#define BALL_MOTOR_MAX_CONTROL_PULSE              (250.0f)  // PID 输出最大相对脉冲（比硬件限位小 30）。
+#define BALL_MOTOR_PULSE_SLEW_PER_SECOND          (1200.0f) // 电机目标位置变化率上限，单位 pulse/s。
+#define BALL_MOTOR_SEND_HYSTERESIS_PULSE          (1)       // 发送死区：位置变化小于此值不重复发送。
+#define BALL_MOTOR_MIN_SEND_INTERVAL_MS           (5U)      // 最小发送间隔：避免 UART DMA 长期忙。
+#define BALL_CONTROL_ENABLE_DEFAULT               (1U)      // 上电后默认启用方案 2 控制。
 
 
 #endif
