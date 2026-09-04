@@ -25,7 +25,9 @@ typedef struct {
 } PID_t;
 
 //***用户函数区***
-float PID_Compute(PID_t *pid, float target, float measure, float dt);
+float PID_Compute(PID_t *pid, float target, float measure, float dt);	//PID 计算核心函数
+
+void Ball_Control_Reset_PID(PID_t *pid);	//清除 PID 历史状态。
 
 #endif
 

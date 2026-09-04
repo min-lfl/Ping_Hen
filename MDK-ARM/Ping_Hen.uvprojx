@@ -972,6 +972,16 @@
               <FileType>5</FileType>
               <FilePath>..\User_BSP\Control_Config.h</FilePath>
             </File>
+            <File>
+              <FileName>math_utils.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User_BSP\math_utils.c</FilePath>
+            </File>
+            <File>
+              <FileName>math_utils.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User_BSP\math_utils.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

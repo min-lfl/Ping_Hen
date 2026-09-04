@@ -27,6 +27,7 @@
 "ping_hen\bsp_emm_v5.o"
 "ping_hen\user_task.o"
 "ping_hen\pid_cnotrol.o"
+"ping_hen\math_utils.o"
 "ping_hen\ssd1306.o"
 "ping_hen\ssd1306_fonts.o"
 "ping_hen\ssd1306_tests.o"

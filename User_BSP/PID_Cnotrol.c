@@ -50,6 +50,27 @@ float PID_Compute(PID_t *pid, float target, float measure, float dt){
 
 
 
+/*
+ * 清除 PID 历史状态。
+ *
+ * 目标：当控制关闭、激光无效、或进入死区时，彻底清除 PID 的内部状态。
+ *
+ * 为什么要清除？
+ *   PID 的积分项会累积历史误差。如果不清除，下次启动控制时，
+ *   旧的积分值会让电机瞬间大幅倾斜，可能导致小球飞出。
+ *   last_error 也会影响微分项，不清除也会导致瞬态输出。
+ *
+ * 所有字段都清零：error, last_error, integral, differential, output。
+ */
+void Ball_Control_Reset_PID(PID_t *pid)
+{
+	pid->error = 0.0f;
+	pid->last_error = 0.0f;
+	pid->integral = 0.0f;
+	pid->differential = 0.0f;
+	pid->output = 0.0f;
+}
+
 
 
 
