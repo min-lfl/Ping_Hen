@@ -75,10 +75,6 @@ extern volatile float ball_control_motor_pulse;            // 速度内环输出
 void User_Task_Init(void);
 
 //***关于参数更新函数任务***
-/*
- * 在主循环中调用。每次调用都会通过 UART1 将速度和加速度参数发送给电机驱动器。
- * 如果需要在运行时修改参数，修改 UPdate_Speed_RPM 和 UPdate_Accel_Param 即可。
- */
 void User_Task_Param_Update(void);
 
 //***关于陀螺仪模块任务***
@@ -87,29 +83,13 @@ void User_Task_MPU6050_Update(void);             // 主循环中调用：读取 
 void User_Task_MPU6050_Get(MPU6050_t* data);     // 获取陀螺仪最新数据副本。注意：需要在 Update() 之后调用。
 
 //***关于激光串口任务***
-/*
- * 激光传感器使用 UART DMA + IDLE 中断接收，数据在后台自动刷新。
- * Init 只需调用一次来启动 DMA 接收。
- * Get 只是读取后台缓存的最新值，不会访问串口。
- */
 void User_Task_Laser_UART_Init(void);                // 启动激光 DMA 后台接收，只需调用一次。
 void User_Task_Laser_UART_Get(float *distance_mm);   // 读取激光缓存值，输出的是相对于零点的位置（原点右侧为正）。
 
 //***关于按键模块任务***
-/*
- * 在主循环中调用，扫描三个按键：
- *   PB13：电机正转到 +250 脉冲位置
- *   PB14：电机回零 + 切换自动/手动控制
- *   PB15：电机反转到 -250 脉冲位置
- */
 void User_Task_key(void);
 
 //***关于加速度补偿控制模块任务(方案1已弃用)***
-/*
- * 方案 1 的内部函数（static，不对外暴露）。
- * 原理：加速度计 → 杆倾角 → 校准表查表 → 电机脉冲 → S 曲线平滑 → 发送命令。
- * 弃用原因：加速度计无法区分"杆倾斜"和"小球加速"，导致控制发散。
- */
 static void Control_Init(void);
 static void Control_Input_Update(float ay_g, float az_g);
 static float Control_Motion_Update(float target_pulse);
@@ -117,48 +97,16 @@ void User_Task_Control(void);         // 方案 1 控制任务，在主循环中
 
 
 //***关于速度环+位置环控制模块任务(方案2，当前使用)***
-/*
- * 串级控制的两个核心任务，分别在定时器中断中调用：
- *
- *   位置外环 (TIM3, 10Hz)：
- *     User_Task_Position_Control()
- *     输入：目标位置 mm、实际位置 mm
- *     输出：ball_control_target_speed_mm_s（小球目标速度 mm/s）
- *     作用：决定小球应该以多快速度往哪个方向移动。
- *
- *   速度内环 (TIM2, 100Hz)：
- *     User_Task_Speed_Control()
- *     输入：目标速度 mm/s、实际速度 mm/s（由位置差分 + 低通滤波估算）
- *     输出：电机的绝对位置脉冲数
- *     作用：让小球的实际速度跟踪目标速度，通过电机倾斜角度控制重力分力。
- *
- * 为什么在中断中调用？
- *   控制算法需要精确的、固定的时间间隔（dt）来计算 PID。
- *   如果放在主循环中，dt 会因为其他任务（OLED、按键、串口打印）的执行时间而变化，
- *   导致 PID 计算不准。放在定时器中断中，dt 严格等于 1/频率。
- */
 void User_Task_Speed_Control(void);     // 速度内环，TIM2 中断中调用，100Hz。
 void User_Task_Position_Control(void);  // 位置外环，TIM3 中断中调用，10Hz。
 
 
 //***关于OLED模块任务***
 void User_Task_OLED_Init(void);       // 初始化 OLED 屏幕，清空显存。
-/*
- * 在主循环中调用，刷新 OLED 显示：
- *   第一行：速度内环 Kp 和位置外环 Kp
- *   第二行：速度内环 Ki 和位置外环 Ki
- *   第三行：速度内环 Kd 和位置外环 Kd
- *   第四行：激光位置（mm）和电机脉冲数
- */
 void User_Task_OLED_Update(void);
 
 
 //*** 关于串口任务***
-/*
- * 在主循环中调用，当前用于向 VOFA+ 上位机发送调试数据：
- *   格式："POS: 位置mm, 电机脉冲数\n"
- *   VOFA+ 可以实时绘制波形，方便观察控制效果。
- */
 void User_Task_UART_Update(void);
 
 #endif
